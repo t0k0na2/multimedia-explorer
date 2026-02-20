@@ -30,7 +30,10 @@
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="local:FileSystemItem">
                     <StackPanel Width="120" Height="140" Padding="8" Spacing="8" Background="Transparent" CornerRadius="4">
-                        <FontIcon Glyph="{x:Bind Icon}" FontSize="48" HorizontalAlignment="Center" Margin="0,16,0,0"/>
+                        <Grid Height="48" Margin="0,16,0,0">
+                            <FontIcon Glyph="{x:Bind Icon}" FontSize="48" Visibility="{x:Bind FontIconVisibility}" HorizontalAlignment="Center"/>
+                            <Image Source="{x:Bind ImageSource}" Stretch="Uniform" Visibility="{x:Bind ImageIconVisibility}" HorizontalAlignment="Center"/>
+                        </Grid>
                         <TextBlock Text="{x:Bind Name}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </DataTemplate>
