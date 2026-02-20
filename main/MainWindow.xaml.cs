@@ -86,5 +86,24 @@ namespace main
                 SelectedDirectoryTextBlock.Text = $"エラー: {ex.Message}";
             }
         }
+
+        private void FileSystemGridView_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+        {
+            var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
+            var isCtrlPressed = ctrlState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            if (isCtrlPressed)
+            {
+                var delta = e.GetCurrentPoint(FileSystemGridView).Properties.MouseWheelDelta;
+                double step = delta > 0 ? 15 : -15;
+                
+                double newValue = ZoomSlider.Value + step;
+                if (newValue > ZoomSlider.Maximum) newValue = ZoomSlider.Maximum;
+                if (newValue < ZoomSlider.Minimum) newValue = ZoomSlider.Minimum;
+                
+                ZoomSlider.Value = newValue;
+                e.Handled = true; // ズーム処理したのでスクロールをキャンセル
+            }
+        }
     }
 }
