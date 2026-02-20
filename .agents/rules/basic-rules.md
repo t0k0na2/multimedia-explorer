@@ -15,6 +15,7 @@ trigger: always_on
 - **【必須】ソースコード内のコメントはすべて日本語で記述すること。**
 - コードの可読性と保守性を重視し、各言語の標準フォーマットやMicrosoftの命名規則に従うこと。
 - クラス名、メソッド名は PascalCase、変数は camelCase を基本とする。
+- コードの編集後は **dotnet build multimedia-explorer.slnx -c Debug -p:Platform=x64** でビルドが通るか確認する
 
 ## 3. C# 開発ルール
 
