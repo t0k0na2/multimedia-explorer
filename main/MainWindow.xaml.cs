@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -23,9 +24,67 @@ namespace main
     /// </summary>
     public sealed partial class MainWindow : Window
     {
+        public ObservableCollection<FileSystemItem> FilesAndFolders { get; } = new ObservableCollection<FileSystemItem>();
+
         public MainWindow()
         {
             InitializeComponent();
+            FileSystemGridView.ItemsSource = FilesAndFolders;
+        }
+
+        private async void SelectDirectoryButton_Click(object sender, RoutedEventArgs e)
+        {
+            var folderPicker = new Windows.Storage.Pickers.FolderPicker();
+            folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.Desktop;
+            folderPicker.FileTypeFilter.Add("*");
+
+            // WinUI 3 向けに Window ハンドルを取得して Picker を関連付ける
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WinRT.Interop.InitializeWithWindow.Initialize(folderPicker, hwnd);
+
+            var folder = await folderPicker.PickSingleFolderAsync();
+            if (folder != null)
+            {
+                SelectedDirectoryTextBlock.Text = folder.Path;
+                LoadDirectoryContents(folder.Path);
+            }
+        }
+
+        private void LoadDirectoryContents(string path)
+        {
+            FilesAndFolders.Clear();
+
+            try
+            {
+                var dirInfo = new DirectoryInfo(path);
+
+                // フォルダの追加
+                foreach (var dir in dirInfo.GetDirectories())
+                {
+                    FilesAndFolders.Add(new FileSystemItem
+                    {
+                        Name = dir.Name,
+                        Path = dir.FullName,
+                        IsFolder = true
+                    });
+                }
+
+                // ファイルの追加
+                foreach (var file in dirInfo.GetFiles())
+                {
+                    FilesAndFolders.Add(new FileSystemItem
+                    {
+                        Name = file.Name,
+                        Path = file.FullName,
+                        IsFolder = false
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                // アクセス権限がない場合などのエラー処理
+                SelectedDirectoryTextBlock.Text = $"エラー: {ex.Message}";
+            }
         }
     }
 }

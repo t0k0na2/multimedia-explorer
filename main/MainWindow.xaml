@@ -14,6 +14,27 @@
     </Window.SystemBackdrop>
 
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
+        <!-- Control Panel -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Padding="16" Spacing="16">
+            <Button Content="ディレクトリを選択" Click="SelectDirectoryButton_Click" />
+            <TextBlock x:Name="SelectedDirectoryTextBlock" VerticalAlignment="Center" Text="ディレクトリが選択されていません。" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+
+        <!-- GridView for Files and Folders -->
+        <GridView Grid.Row="1" x:Name="FileSystemGridView" Padding="16" SelectionMode="Single">
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="local:FileSystemItem">
+                    <StackPanel Width="120" Height="140" Padding="8" Spacing="8" Background="Transparent" CornerRadius="4">
+                        <FontIcon Glyph="{x:Bind Icon}" FontSize="48" HorizontalAlignment="Center" Margin="0,16,0,0"/>
+                        <TextBlock Text="{x:Bind Name}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+        </GridView>
     </Grid>
 </Window>
