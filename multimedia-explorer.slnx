@@ -10,4 +10,9 @@
     <Platform Solution="*|x86" Project="x86" />
     <Deploy />
   </Project>
+  <Project Path="NativeMediaWinRT\NativeMediaWinRT.vcxproj" Id="b09bfaa1-6b84-4135-b2bc-db6806f36383">
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|x86" Project="Win32" />
+  </Project>
 </Solution>

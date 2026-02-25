@@ -13,10 +13,9 @@ namespace main
     public sealed partial class AnimatedImageControl : UserControl
     {
         private DispatcherTimer _timer;
-        private IntPtr _webpAnimation = IntPtr.Zero;
+        private NativeMediaWinRT.WebPAnimation? _webpAnimation;
         private int _currentFrameIndex = 0;
         private WriteableBitmap? _bitmap;
-        private NativeMediaInterop.WebPAnimation _animData;
 
         public string? ImagePath
         {
@@ -57,20 +56,16 @@ namespace main
                 // Load via C++ decoder
                 await Task.Run(() =>
                 {
-                    _webpAnimation = NativeMediaInterop.DecodeWebPAnimation(path);
-                    if (_webpAnimation != IntPtr.Zero)
-                    {
-                        _animData = Marshal.PtrToStructure<NativeMediaInterop.WebPAnimation>(_webpAnimation);
-                    }
+                    _webpAnimation = NativeMediaWinRT.WebPDecoder.DecodeAnimation(path);
                 });
 
-                if (_webpAnimation != IntPtr.Zero && _animData.frameCount > 0)
+                if (_webpAnimation != null && _webpAnimation.FrameCount > 0)
                 {
-                    _bitmap = new WriteableBitmap(_animData.width, _animData.height);
+                    _bitmap = new WriteableBitmap(_webpAnimation.Width, _webpAnimation.Height);
                     DisplayImage.Source = _bitmap;
                     _currentFrameIndex = 0;
                     
-                    if (_animData.frameCount > 1)
+                    if (_webpAnimation.FrameCount > 1)
                     {
                         UpdateFrame();
                         _timer.Start();
@@ -91,32 +86,27 @@ namespace main
 
         private void UpdateFrame()
         {
-            if (_webpAnimation == IntPtr.Zero || _animData.frameCount == 0 || _bitmap == null) return;
+            if (_webpAnimation == null || _webpAnimation.FrameCount == 0 || _bitmap == null) return;
 
-            long frameOffset = _animData.frames.ToInt64() + _currentFrameIndex * Marshal.SizeOf<NativeMediaInterop.WebPFrame>();
-            var frame = Marshal.PtrToStructure<NativeMediaInterop.WebPFrame>(new IntPtr(frameOffset));
-
-            int bytesPerPixel = 4;
-            int totalBytes = _animData.width * _animData.height * bytesPerPixel;
+            var frame = _webpAnimation.Frames[_currentFrameIndex];
             
             var pixelBuffer = _bitmap.PixelBuffer;
             using (var stream = pixelBuffer.AsStream())
             {
-                byte[] managedArray = new byte[totalBytes];
-                Marshal.Copy(frame.bgraBuffer, managedArray, 0, totalBytes);
-                stream.Write(managedArray, 0, totalBytes);
+                byte[] managedArray = frame.BgraBuffer;
+                stream.Write(managedArray, 0, managedArray.Length);
             }
             _bitmap.Invalidate(); // Ensure UI updates
 
             // Set interval for next frame
-            int duration = frame.durationMs > 0 ? frame.durationMs : 100;
+            int duration = frame.DurationMs > 0 ? frame.DurationMs : 100;
             _timer.Interval = TimeSpan.FromMilliseconds(duration);
         }
 
         private void Timer_Tick(object? sender, object e)
         {
             _currentFrameIndex++;
-            if (_currentFrameIndex >= _animData.frameCount)
+            if (_webpAnimation != null && _currentFrameIndex >= _webpAnimation.FrameCount)
             {
                 _currentFrameIndex = 0;
             }
@@ -126,11 +116,7 @@ namespace main
         private void StopAnimation()
         {
             _timer.Stop();
-            if (_webpAnimation != IntPtr.Zero)
-            {
-                NativeMediaInterop.FreeWebPAnimation(_webpAnimation);
-                _webpAnimation = IntPtr.Zero;
-            }
+            _webpAnimation = null;
             _bitmap = null;
         }
 

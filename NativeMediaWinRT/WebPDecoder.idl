@@ -1,0 +1,26 @@
+namespace NativeMediaWinRT
+{
+    runtimeclass WebPFrame
+    {
+        WebPFrame();
+        UInt8[] BgraBuffer { get; };
+        Int32 DurationMs { get; };
+    }
+
+    runtimeclass WebPAnimation
+    {
+        WebPAnimation();
+        Int32 Width { get; };
+        Int32 Height { get; };
+        Int32 FrameCount { get; };
+        Int32 LoopCount { get; };
+        Windows.Foundation.Collections.IVectorView<WebPFrame> Frames { get; };
+    }
+
+    [default_interface]
+    runtimeclass WebPDecoder
+    {
+        WebPDecoder();
+        static WebPAnimation DecodeAnimation(String filePath);
+    }
+}
