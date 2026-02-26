@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Graphics.Imaging;
-
+using Windows.Storage;
 namespace main
 {
     public sealed partial class AnimatedImageControl : UserControl
@@ -25,6 +25,24 @@ namespace main
 
         public static readonly DependencyProperty ImagePathProperty =
             DependencyProperty.Register("ImagePath", typeof(string), typeof(AnimatedImageControl), new PropertyMetadata(null, OnImagePathChanged));
+
+        public double TargetSize
+        {
+            get { return (double)GetValue(TargetSizeProperty); }
+            set { SetValue(TargetSizeProperty, value); }
+        }
+
+        public static readonly DependencyProperty TargetSizeProperty =
+            DependencyProperty.Register("TargetSize", typeof(double), typeof(AnimatedImageControl), new PropertyMetadata(100.0, OnTargetSizeChanged));
+
+        private static async void OnTargetSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var control = (AnimatedImageControl)d;
+            if (!string.IsNullOrEmpty(control.ImagePath) && Path.GetExtension(control.ImagePath).ToLowerInvariant() == ".ico")
+            {
+                await control.LoadImageAsync(control.ImagePath);
+            }
+        }
 
         public AnimatedImageControl()
         {
@@ -76,11 +94,74 @@ namespace main
                     }
                 }
             }
+            else if (ext == ".ico")
+            {
+                await LoadIcoAsync(path);
+            }
             else if (ext == ".gif" || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
             {
                 // Fallback to standard BitmapImage which supports GIF natively
                 var bmp = new BitmapImage(new Uri(path));
                 DisplayImage.Source = bmp;
+            }
+        }
+
+        private async Task LoadIcoAsync(string path)
+        {
+            try
+            {
+                var file = await StorageFile.GetFileFromPathAsync(path);
+                using var stream = await file.OpenReadAsync();
+                var decoder = await BitmapDecoder.CreateAsync(stream);
+                
+                uint frameCount = decoder.FrameCount;
+                if (frameCount == 0) return;
+
+                uint bestFrameIndex = 0;
+                double target = TargetSize > 0 ? TargetSize : 100;
+                
+                uint bestSize = 0;
+                
+                for (uint i = 0; i < frameCount; i++)
+                {
+                    var frame = await decoder.GetFrameAsync(i);
+                    uint size = Math.Max(frame.PixelWidth, frame.PixelHeight);
+                    
+                    if (size >= target)
+                    {
+                        if (bestSize == 0 || bestSize < target || size < bestSize)
+                        {
+                            bestSize = size;
+                            bestFrameIndex = i;
+                        }
+                    }
+                    else 
+                    {
+                        if (bestSize == 0 || (bestSize < target && size > bestSize))
+                        {
+                            bestSize = size;
+                            bestFrameIndex = i;
+                        }
+                    }
+                }
+
+                var bestFrame = await decoder.GetFrameAsync(bestFrameIndex);
+                var softwareBitmap = await bestFrame.GetSoftwareBitmapAsync();
+                
+                if (softwareBitmap.BitmapPixelFormat != BitmapPixelFormat.Bgra8 ||
+                    softwareBitmap.BitmapAlphaMode == BitmapAlphaMode.Straight)
+                {
+                    softwareBitmap = SoftwareBitmap.Convert(softwareBitmap, BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
+                }
+                
+                var source = new Microsoft.UI.Xaml.Media.Imaging.SoftwareBitmapSource();
+                await source.SetBitmapAsync(softwareBitmap);
+                DisplayImage.Source = source;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load ICO: {ex.Message}");
+                DisplayImage.Source = null;
             }
         }
 
