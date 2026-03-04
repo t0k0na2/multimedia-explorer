@@ -35,12 +35,15 @@ namespace main
         public static readonly DependencyProperty TargetSizeProperty =
             DependencyProperty.Register("TargetSize", typeof(double), typeof(AnimatedImageControl), new PropertyMetadata(100.0, OnTargetSizeChanged));
 
-        private static async void OnTargetSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void OnTargetSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var control = (AnimatedImageControl)d;
             if (!string.IsNullOrEmpty(control.ImagePath) && Path.GetExtension(control.ImagePath).ToLowerInvariant() == ".ico")
             {
-                await control.LoadImageAsync(control.ImagePath);
+                control.DispatcherQueue.TryEnqueue(async () =>
+                {
+                    await control.LoadImageAsync(control.ImagePath);
+                });
             }
         }
 
@@ -52,10 +55,13 @@ namespace main
             this.Unloaded += AnimatedImageControl_Unloaded;
         }
 
-        private static async void OnImagePathChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void OnImagePathChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var control = (AnimatedImageControl)d;
-            await control.LoadImageAsync((string)e.NewValue);
+            control.DispatcherQueue.TryEnqueue(async () =>
+            {
+                await control.LoadImageAsync((string)e.NewValue);
+            });
         }
 
         private async Task LoadImageAsync(string path)

@@ -26,11 +26,25 @@ namespace main
             }
         }
 
-        // FontIconの表示制御
-        public Visibility FontIconVisibility => IsImage ? Visibility.Collapsed : Visibility.Visible;
+        // 音声ファイルかどうかを判定
+        public bool IsAudio
+        {
+            get
+            {
+                if (IsFolder || string.IsNullOrEmpty(Path)) return false;
+                var ext = System.IO.Path.GetExtension(Path).ToLowerInvariant();
+                return ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".m4a" || ext == ".flac" || ext == ".wma" || ext == ".aac";
+            }
+        }
+
+        // FontIconの表示制御 (フォルダ、または画像・音声以外のファイル)
+        public Visibility FontIconVisibility => (!IsImage && !IsAudio) ? Visibility.Visible : Visibility.Collapsed;
 
         // Imageの表示制御
         public Visibility ImageIconVisibility => IsImage ? Visibility.Visible : Visibility.Collapsed;
+
+        // Audioボタンの表示制御
+        public Visibility AudioButtonVisibility => IsAudio ? Visibility.Visible : Visibility.Collapsed;
 
         // 画像ソース
         public BitmapImage? ImageSource

@@ -36,6 +36,9 @@
                             <Grid Width="100" Height="100">
                                 <FontIcon Glyph="{x:Bind Icon}" FontSize="64" Visibility="{x:Bind FontIconVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 <local:AnimatedImageControl ImagePath="{x:Bind Path}" TargetSize="{Binding ElementName=ZoomSlider, Path=Value}" Visibility="{x:Bind ImageIconVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Button Visibility="{x:Bind AudioButtonVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Padding="0" Click="AudioPlayButton_Click" Tag="{x:Bind Path}">
+                                    <FontIcon Glyph="&#xE768;" FontSize="48" Margin="0" />
+                                </Button>
                             </Grid>
                         </Viewbox>
                         <TextBlock Text="{x:Bind Name}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
