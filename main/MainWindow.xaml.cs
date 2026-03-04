@@ -31,6 +31,10 @@ namespace main
         private string? _currentlyPlayingPath;
         private Button? _currentlyPlayingButton;
 
+        private MediaPlayerElement? _currentVideoPlayerElement;
+        private string? _currentVideoPlayingPath;
+        private Button? _currentVideoPlayingButton;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -40,7 +44,7 @@ namespace main
         }
 
         private async void SelectDirectoryButton_Click(object sender, RoutedEventArgs e)
-        {
+                {
             var folderPicker = new Windows.Storage.Pickers.FolderPicker();
             folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.Desktop;
             folderPicker.FileTypeFilter.Add("*");
@@ -117,6 +121,21 @@ namespace main
         {
             if (sender is Button btn && btn.Tag is string path)
             {
+                // 動画が再生中の場合は停止
+                if (_currentVideoPlayerElement != null)
+                {
+                    _currentVideoPlayerElement.MediaPlayer?.Pause();
+                    _currentVideoPlayerElement.Source = null;
+                    _currentVideoPlayerElement.Visibility = Visibility.Collapsed;
+                    if (_currentVideoPlayingButton != null && _currentVideoPlayingButton.Content is FontIcon oldVideoIcon)
+                    {
+                        oldVideoIcon.Glyph = "\uE768"; // Play
+                    }
+                    _currentVideoPlayingPath = null;
+                    _currentVideoPlayerElement = null;
+                    _currentVideoPlayingButton = null;
+                }
+
                 if (_currentlyPlayingPath == path && _previewPlayer.PlaybackSession.PlaybackState == MediaPlaybackState.Playing)
                 {
                     // 既に同じファイルが再生中の場合は一時停止
@@ -168,6 +187,113 @@ namespace main
                     icon.Glyph = "\uE768"; // Play
                 }
                 _currentlyPlayingPath = null;
+            });
+        }
+
+        private async void VideoPlayButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string path)
+            {
+                // 既存の音声プレイバックがあれば停止
+                if (_previewPlayer.PlaybackSession.PlaybackState == MediaPlaybackState.Playing)
+                {
+                    _previewPlayer.Pause();
+                    if (_currentlyPlayingButton != null && _currentlyPlayingButton.Content is FontIcon oldAudioIcon)
+                    {
+                        oldAudioIcon.Glyph = "\uE768"; // Play
+                    }
+                    _currentlyPlayingPath = null;
+                }
+
+                // 兄弟要素から MediaPlayerElement を探す
+                var grid = (Grid)VisualTreeHelper.GetParent(btn);
+                MediaPlayerElement? playerElement = null;
+                for (int i = 0; i < VisualTreeHelper.GetChildrenCount(grid); i++)
+                {
+                    if (VisualTreeHelper.GetChild(grid, i) is MediaPlayerElement me)
+                    {
+                        playerElement = me;
+                        break;
+                    }
+                }
+
+                if (playerElement == null) return;
+
+                if (_currentVideoPlayingPath == path)
+                {
+                    // 同じものをクリックした場合は一時停止 / 再開
+                    if (playerElement.MediaPlayer?.PlaybackSession.PlaybackState == MediaPlaybackState.Playing)
+                    {
+                        playerElement.MediaPlayer.Pause();
+                        if (btn.Content is FontIcon icon) icon.Glyph = "\uE768"; // Play
+                    }
+                    else if (playerElement.MediaPlayer != null)
+                    {
+                        playerElement.MediaPlayer.Play();
+                        if (btn.Content is FontIcon icon) icon.Glyph = "\uE769"; // Pause
+                    }
+                    return;
+                }
+
+                // 別の動画が再生中の場合は、前のを停止・非表示・Playボタンに戻す
+                if (_currentVideoPlayerElement != null && _currentVideoPlayerElement != playerElement)
+                {
+                    _currentVideoPlayerElement.MediaPlayer?.Pause();
+                    _currentVideoPlayerElement.Source = null;
+                    _currentVideoPlayerElement.Visibility = Visibility.Collapsed;
+                    if (_currentVideoPlayingButton != null && _currentVideoPlayingButton.Content is FontIcon oldIcon)
+                    {
+                        oldIcon.Glyph = "\uE768"; // Play
+                    }
+                }
+
+                try
+                {
+                    // 新規再生
+                    var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
+                    if (playerElement.MediaPlayer == null)
+                    {
+                        var player = new MediaPlayer();
+                        player.MediaEnded += VideoPlayer_MediaEnded;
+                        player.IsLoopingEnabled = false;
+                        playerElement.SetMediaPlayer(player);
+                    }
+                    playerElement.Source = MediaSource.CreateFromStorageFile(file);
+                    playerElement.Visibility = Visibility.Visible;
+                    playerElement.MediaPlayer?.Play();
+                    
+                    _currentVideoPlayerElement = playerElement;
+                    _currentVideoPlayingPath = path;
+                    _currentVideoPlayingButton = btn;
+
+                    if (btn.Content is FontIcon currentIcon)
+                    {
+                        currentIcon.Glyph = "\uE769"; // Pause
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SelectedDirectoryTextBlock.Text = $"再生エラー: {ex.Message}";
+                }
+            }
+        }
+
+        private void VideoPlayer_MediaEnded(MediaPlayer sender, object args)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_currentVideoPlayingButton != null && _currentVideoPlayingButton.Content is FontIcon icon)
+                {
+                    icon.Glyph = "\uE768"; // Play
+                }
+                if (_currentVideoPlayerElement != null)
+                {
+                    _currentVideoPlayerElement.Visibility = Visibility.Collapsed;
+                    _currentVideoPlayerElement.Source = null;
+                }
+                _currentVideoPlayingPath = null;
+                _currentVideoPlayerElement = null;
+                _currentVideoPlayingButton = null;
             });
         }
     }

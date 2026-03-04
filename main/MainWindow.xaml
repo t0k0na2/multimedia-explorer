@@ -14,37 +14,41 @@
     </Window.SystemBackdrop>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <!-- Control Panel -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Padding="16" Spacing="16">
+            <!-- Control Panel -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Padding="16" Spacing="16">
             <Button Content="ディレクトリを選択" Click="SelectDirectoryButton_Click" />
-            <TextBlock x:Name="SelectedDirectoryTextBlock" VerticalAlignment="Center" Text="ディレクトリが選択されていません。" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
-            <Slider x:Name="ZoomSlider" Minimum="60" Maximum="600" Value="120" Width="200" VerticalAlignment="Center" Header="ズーム" />
-        </StackPanel>
+                <TextBlock x:Name="SelectedDirectoryTextBlock" VerticalAlignment="Center" Text="ディレクトリが選択されていません。" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                <Slider x:Name="ZoomSlider" Minimum="60" Maximum="600" Value="120" Width="200" VerticalAlignment="Center" Header="ズーム" />
+            </StackPanel>
 
-        <!-- GridView for Files and Folders -->
-        <GridView Grid.Row="1" x:Name="FileSystemGridView" Padding="16" SelectionMode="Single"
-                  PointerWheelChanged="FileSystemGridView_PointerWheelChanged">
-            <GridView.ItemTemplate>
-                <DataTemplate x:DataType="local:FileSystemItem">
-                    <StackPanel Width="{Binding ElementName=ZoomSlider, Path=Value}" Padding="8" Spacing="8" Background="Transparent" CornerRadius="4">
-                        <Viewbox Stretch="Uniform" StretchDirection="Both">
-                            <Grid Width="100" Height="100">
-                                <FontIcon Glyph="{x:Bind Icon}" FontSize="64" Visibility="{x:Bind FontIconVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                <local:AnimatedImageControl ImagePath="{x:Bind Path}" TargetSize="{Binding ElementName=ZoomSlider, Path=Value}" Visibility="{x:Bind ImageIconVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                <Button Visibility="{x:Bind AudioButtonVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Padding="0" Click="AudioPlayButton_Click" Tag="{x:Bind Path}">
-                                    <FontIcon Glyph="&#xE768;" FontSize="48" Margin="0" />
-                                </Button>
-                            </Grid>
-                        </Viewbox>
-                        <TextBlock Text="{x:Bind Name}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
-                    </StackPanel>
-                </DataTemplate>
-            </GridView.ItemTemplate>
-        </GridView>
+            <!-- GridView for Files and Folders -->
+            <GridView Grid.Row="1" x:Name="FileSystemGridView" Padding="16" SelectionMode="Single"
+                      PointerWheelChanged="FileSystemGridView_PointerWheelChanged">
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="local:FileSystemItem">
+                        <StackPanel Width="{Binding ElementName=ZoomSlider, Path=Value}" Padding="8" Spacing="8" Background="Transparent" CornerRadius="4">
+                            <Viewbox Stretch="Uniform" StretchDirection="Both">
+                                <Grid Width="100" Height="100">
+                                    <FontIcon Glyph="{x:Bind Icon}" FontSize="64" Visibility="{x:Bind FontIconVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <local:AnimatedImageControl ImagePath="{x:Bind Path}" TargetSize="{Binding ElementName=ZoomSlider, Path=Value}" Visibility="{x:Bind ImageIconVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <MediaPlayerElement Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="UniformToFill" />
+                                    <Button Visibility="{x:Bind AudioButtonVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Padding="0" Click="AudioPlayButton_Click" Tag="{x:Bind Path}">
+                                        <FontIcon Glyph="&#xE768;" FontSize="48" Margin="0" />
+                                    </Button>
+                                    <Button Visibility="{x:Bind VideoButtonVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Padding="0" Click="VideoPlayButton_Click" Tag="{x:Bind Path}">
+                                        <FontIcon Glyph="&#xE768;" FontSize="48" Margin="0" />
+                                    </Button>
+                                </Grid>
+                            </Viewbox>
+                            <TextBlock Text="{x:Bind Name}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
     </Grid>
 </Window>

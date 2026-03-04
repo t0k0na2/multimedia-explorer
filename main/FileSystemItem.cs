@@ -37,14 +37,28 @@ namespace main
             }
         }
 
-        // FontIconの表示制御 (フォルダ、または画像・音声以外のファイル)
-        public Visibility FontIconVisibility => (!IsImage && !IsAudio) ? Visibility.Visible : Visibility.Collapsed;
+        // 動画ファイルかどうかを判定
+        public bool IsVideo
+        {
+            get
+            {
+                if (IsFolder || string.IsNullOrEmpty(Path)) return false;
+                var ext = System.IO.Path.GetExtension(Path).ToLowerInvariant();
+                return ext == ".avi" || ext == ".mov" || ext == ".mp4" || ext == ".webm" || ext == ".wmv";
+            }
+        }
+
+        // FontIconの表示制御 (フォルダ、または画像・音声・動画以外のファイル)
+        public Visibility FontIconVisibility => (!IsImage && !IsAudio && !IsVideo) ? Visibility.Visible : Visibility.Collapsed;
 
         // Imageの表示制御
         public Visibility ImageIconVisibility => IsImage ? Visibility.Visible : Visibility.Collapsed;
 
         // Audioボタンの表示制御
         public Visibility AudioButtonVisibility => IsAudio ? Visibility.Visible : Visibility.Collapsed;
+
+        // Videoボタンの表示制御
+        public Visibility VideoButtonVisibility => IsVideo ? Visibility.Visible : Visibility.Collapsed;
 
         // 画像ソース
         public BitmapImage? ImageSource
