@@ -14,6 +14,30 @@
     </Window.SystemBackdrop>
 
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="250" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Pane: Folder Tree -->
+        <TreeView x:Name="FolderTreeView" 
+                  Grid.Column="0" 
+                  SelectionMode="Single"
+                  Expanding="FolderTreeView_Expanding" 
+                  ItemInvoked="FolderTreeView_ItemInvoked"
+                  Padding="8,16,8,8">
+            <TreeView.ItemTemplate>
+                <DataTemplate x:DataType="TreeViewNode">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="{x:Bind ((local:ExplorerItem)Content).Icon}" FontSize="16" VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind ((local:ExplorerItem)Content).Name}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </DataTemplate>
+            </TreeView.ItemTemplate>
+        </TreeView>
+
+        <!-- Right Pane: existing Content -->
+        <Grid Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -21,7 +45,7 @@
 
             <!-- Control Panel -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Padding="16" Spacing="16">
-            <Button Content="ディレクトリを選択" Click="SelectDirectoryButton_Click" />
+                <!-- Directory select button removed -->
                 <TextBlock x:Name="SelectedDirectoryTextBlock" VerticalAlignment="Center" Text="ディレクトリが選択されていません。" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
                 <Slider x:Name="ZoomSlider" Minimum="60" Maximum="600" Value="120" Width="200" VerticalAlignment="Center" Header="ズーム" />
             </StackPanel>
@@ -50,5 +74,6 @@
                     </DataTemplate>
                 </GridView.ItemTemplate>
             </GridView>
+        </Grid>
     </Grid>
 </Window>

@@ -41,23 +41,83 @@ namespace main
             FileSystemGridView.ItemsSource = FilesAndFolders;
             _previewPlayer = new MediaPlayer();
             _previewPlayer.MediaEnded += _previewPlayer_MediaEnded;
+
+            InitializeFolderTree();
         }
 
-        private async void SelectDirectoryButton_Click(object sender, RoutedEventArgs e)
-                {
-            var folderPicker = new Windows.Storage.Pickers.FolderPicker();
-            folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.Desktop;
-            folderPicker.FileTypeFilter.Add("*");
-
-            // WinUI 3 向けに Window ハンドルを取得して Picker を関連付ける
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            WinRT.Interop.InitializeWithWindow.Initialize(folderPicker, hwnd);
-
-            var folder = await folderPicker.PickSingleFolderAsync();
-            if (folder != null)
+        private void InitializeFolderTree()
+        {
+            try
             {
-                SelectedDirectoryTextBlock.Text = folder.Path;
-                LoadDirectoryContents(folder.Path);
+                foreach (var drive in System.IO.DriveInfo.GetDrives())
+                {
+                    if (drive.IsReady)
+                    {
+                        var node = new Microsoft.UI.Xaml.Controls.TreeViewNode()
+                        {
+                            Content = new ExplorerItem { Name = drive.Name, Path = drive.RootDirectory.FullName },
+                            HasUnrealizedChildren = true
+                        };
+                        FolderTreeView.RootNodes.Add(node);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SelectedDirectoryTextBlock.Text = $"ドライブの読み込みエラー: {ex.Message}";
+            }
+        }
+
+        private void FolderTreeView_Expanding(Microsoft.UI.Xaml.Controls.TreeView sender, Microsoft.UI.Xaml.Controls.TreeViewExpandingEventArgs args)
+        {
+            if (args.Node.HasUnrealizedChildren)
+            {
+                FillTreeNode(args.Node);
+            }
+        }
+
+        private void FillTreeNode(Microsoft.UI.Xaml.Controls.TreeViewNode node)
+        {
+            if (node.Content is ExplorerItem item)
+            {
+                node.Children.Clear();
+                try
+                {
+                    var dirInfo = new System.IO.DirectoryInfo(item.Path);
+                    foreach (var dir in dirInfo.GetDirectories())
+                    {
+                        if (!dir.Attributes.HasFlag(System.IO.FileAttributes.Hidden) && !dir.Attributes.HasFlag(System.IO.FileAttributes.System))
+                        {
+                            var childNode = new Microsoft.UI.Xaml.Controls.TreeViewNode()
+                            {
+                                Content = new ExplorerItem { Name = dir.Name, Path = dir.FullName },
+                                HasUnrealizedChildren = true
+                            };
+                            node.Children.Add(childNode);
+                        }
+                    }
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // アクセス拒否時はスキップ
+                }
+                catch (Exception)
+                {
+                    // そのほかのエラーもスキップ
+                }
+                finally
+                {
+                    node.HasUnrealizedChildren = false;
+                }
+            }
+        }
+
+        private void FolderTreeView_ItemInvoked(Microsoft.UI.Xaml.Controls.TreeView sender, Microsoft.UI.Xaml.Controls.TreeViewItemInvokedEventArgs args)
+        {
+            if (args.InvokedItem is Microsoft.UI.Xaml.Controls.TreeViewNode node && node.Content is ExplorerItem item)
+            {
+                SelectedDirectoryTextBlock.Text = item.Path;
+                LoadDirectoryContents(item.Path);
             }
         }
 
