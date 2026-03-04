@@ -22,7 +22,7 @@ namespace main
             {
                 if (IsFolder || string.IsNullOrEmpty(Path)) return false;
                 var ext = System.IO.Path.GetExtension(Path).ToLowerInvariant();
-                return ext == ".bmp" || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" || ext == ".webp" || ext == ".ico";
+                return ext == ".bmp" || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" || ext == ".webp" || ext == ".ico" || ext == ".svg";
             }
         }
 

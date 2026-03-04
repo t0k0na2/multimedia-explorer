@@ -104,6 +104,11 @@ namespace main
             {
                 await LoadIcoAsync(path);
             }
+            else if (ext == ".svg")
+            {
+                var svgSource = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri(path));
+                DisplayImage.Source = svgSource;
+            }
             else if (ext == ".gif" || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
             {
                 // Fallback to standard BitmapImage which supports GIF natively
