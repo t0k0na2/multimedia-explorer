@@ -35,9 +35,30 @@ namespace main
         private string? _currentVideoPlayingPath;
         private Button? _currentVideoPlayingButton;
 
+        [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+        private static extern IntPtr ExtractIcon(IntPtr hInst, string lpszExeFileName, int nIconIndex);
+
         public MainWindow()
         {
             InitializeComponent();
+            
+            // アプリケーションウィンドウのアイコンを設定
+            var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            Microsoft.UI.WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
+            var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+            
+            // 実行ファイル自体からアイコンを抽出してタイトルバーに適用する
+            string? exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (exePath != null)
+            {
+                IntPtr hIcon = ExtractIcon(IntPtr.Zero, exePath, 0);
+                if (hIcon != IntPtr.Zero)
+                {
+                    Microsoft.UI.IconId iconId = Microsoft.UI.Win32Interop.GetIconIdFromIcon(hIcon);
+                    appWindow.SetIcon(iconId);
+                }
+            }
+
             FileSystemGridView.ItemsSource = FilesAndFolders;
             _previewPlayer = new MediaPlayer();
             _previewPlayer.MediaEnded += _previewPlayer_MediaEnded;
@@ -49,22 +70,62 @@ namespace main
         {
             try
             {
+                // クイックアクセスノード
+                var quickAccessNode = new Microsoft.UI.Xaml.Controls.TreeViewNode()
+                {
+                    Content = new ExplorerItem { Name = "クイックアクセス", Path = "", Icon = "\uE83F" }, // Star icon
+                    IsExpanded = true
+                };
+
+                // PCノード
+                var pcNode = new Microsoft.UI.Xaml.Controls.TreeViewNode()
+                {
+                    Content = new ExplorerItem { Name = "PC", Path = "", Icon = "\uE7F4" }, // Monitor icon
+                    IsExpanded = true
+                };
+
+                // 特殊フォルダを追加
+                AddSpecialFolder(quickAccessNode, "デスクトップ", Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "\uE8B7"); 
+                var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                AddSpecialFolder(quickAccessNode, "ダウンロード", System.IO.Path.Combine(userProfile, "Downloads"), "\uE896"); // Download icon
+                AddSpecialFolder(quickAccessNode, "ドキュメント", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "\uE8A5"); // Document icon
+                AddSpecialFolder(quickAccessNode, "ピクチャ", Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "\uE8B9"); // Picture icon
+                AddSpecialFolder(quickAccessNode, "ビデオ", Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "\uE8B2"); // Video icon
+                AddSpecialFolder(quickAccessNode, "ミュージック", Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "\uE8D6"); // Music icon
+
+                // ドライブを追加
                 foreach (var drive in System.IO.DriveInfo.GetDrives())
                 {
                     if (drive.IsReady)
                     {
                         var node = new Microsoft.UI.Xaml.Controls.TreeViewNode()
                         {
-                            Content = new ExplorerItem { Name = drive.Name, Path = drive.RootDirectory.FullName },
+                            Content = new ExplorerItem { Name = drive.Name, Path = drive.RootDirectory.FullName, Icon = "\uEDA2" }, // HardDrive icon
                             HasUnrealizedChildren = true
                         };
-                        FolderTreeView.RootNodes.Add(node);
+                        pcNode.Children.Add(node);
                     }
                 }
+
+                FolderTreeView.RootNodes.Add(quickAccessNode);
+                FolderTreeView.RootNodes.Add(pcNode);
             }
             catch (Exception ex)
             {
-                SelectedDirectoryTextBlock.Text = $"ドライブの読み込みエラー: {ex.Message}";
+                SelectedDirectoryTextBlock.Text = $"ディレクトリの読み込みエラー: {ex.Message}";
+            }
+        }
+
+        private void AddSpecialFolder(Microsoft.UI.Xaml.Controls.TreeViewNode parentNode, string name, string path, string icon)
+        {
+            if (System.IO.Directory.Exists(path))
+            {
+                var node = new Microsoft.UI.Xaml.Controls.TreeViewNode()
+                {
+                    Content = new ExplorerItem { Name = name, Path = path, Icon = icon },
+                    HasUnrealizedChildren = true
+                };
+                parentNode.Children.Add(node);
             }
         }
 
@@ -116,6 +177,8 @@ namespace main
         {
             if (args.InvokedItem is Microsoft.UI.Xaml.Controls.TreeViewNode node && node.Content is ExplorerItem item)
             {
+                if (string.IsNullOrEmpty(item.Path)) return;
+
                 SelectedDirectoryTextBlock.Text = item.Path;
                 LoadDirectoryContents(item.Path);
             }

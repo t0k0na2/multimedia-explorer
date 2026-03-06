@@ -4,6 +4,7 @@
     <TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>main</RootNamespace>
+    <ApplicationIcon>Assets\mme_icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
@@ -13,10 +14,14 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>None</WindowsPackageType>
     <Nullable>enable</Nullable>
+	<SelfContained>true</SelfContained>
+	<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <CsWinRTIncludes>NativeMediaWinRT</CsWinRTIncludes>
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="Assets\mme_icon.ico" />
+    <Content Include="Assets\mme_icon.png" />
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />
@@ -62,6 +67,7 @@
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <AssemblyName>mme</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
@@ -81,4 +87,15 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
   </PropertyGroup>
+	<Target Name="DeleteLanguageFolders" AfterTargets="Publish">
+		<ItemGroup>
+			<_PublishSubDirectories Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)'))" />
+
+			<_FoldersToRemove Include="@(_PublishSubDirectories)"
+			 Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', '[/\\\\\\](?!.*(ja-JP|en-us))([a-z]{2,3}(-[A-Za-z]+)?(-[A-Z]+)?)$'))" />
+		</ItemGroup>
+		<RemoveDir Directories="@(_FoldersToRemove)" />
+		<Message Text="不要言語フォルダ削除: @(_FoldersToRemove)" Importance="high" />
+
+	</Target>
 </Project>
