@@ -48,8 +48,19 @@ namespace main
             }
         }
 
-        // FontIconの表示制御 (フォルダ、または画像・音声・動画以外のファイル)
-        public Visibility FontIconVisibility => (!IsImage && !IsAudio && !IsVideo) ? Visibility.Visible : Visibility.Collapsed;
+        // 3Dモデルかどうかを判定
+        public bool Is3DModel
+        {
+            get
+            {
+                if (IsFolder || string.IsNullOrEmpty(Path)) return false;
+                var ext = System.IO.Path.GetExtension(Path).ToLowerInvariant();
+                return ext == ".fbx" || ext == ".gltf" || ext == ".glb" || ext == ".obj";
+            }
+        }
+
+        // FontIconの表示制御 (フォルダ、または画像・音声・動画・3Dモデル以外のファイル)
+        public Visibility FontIconVisibility => (!IsImage && !IsAudio && !IsVideo && !Is3DModel) ? Visibility.Visible : Visibility.Collapsed;
 
         // Imageの表示制御
         public Visibility ImageIconVisibility => IsImage ? Visibility.Visible : Visibility.Collapsed;
@@ -59,6 +70,9 @@ namespace main
 
         // Videoボタンの表示制御
         public Visibility VideoButtonVisibility => IsVideo ? Visibility.Visible : Visibility.Collapsed;
+        
+        // 3Dモデルボタンの表示制御
+        public Visibility ModelButtonVisibility => Is3DModel ? Visibility.Visible : Visibility.Collapsed;
 
         // 画像ソース
         public BitmapImage? ImageSource
