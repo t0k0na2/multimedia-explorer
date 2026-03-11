@@ -115,6 +115,53 @@ namespace main
                 var bmp = new BitmapImage(new Uri(path));
                 DisplayImage.Source = bmp;
             }
+            else if (ext == ".mp4" || ext == ".avi" || ext == ".mov" || ext == ".webm" || ext == ".wmv")
+            {
+                await LoadVideoThumbnailAsync(path);
+            }
+        }
+
+        private async Task LoadVideoThumbnailAsync(string path)
+        {
+            try
+            {
+                var file = await StorageFile.GetFileFromPathAsync(path);
+                var thumbnail = await file.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.VideosView, (uint)(TargetSize > 0 ? TargetSize : 100));
+                
+                if (thumbnail != null && thumbnail.Type == Windows.Storage.FileProperties.ThumbnailType.Image)
+                {
+                    var bitmapImage = new BitmapImage();
+                    await bitmapImage.SetSourceAsync(thumbnail);
+                    DisplayImage.Source = bitmapImage;
+                }
+                else
+                {
+                    thumbnail?.Dispose();
+                    // OSがサムネイル（画像）を返さなかった場合（WebMなどでアイコンが返る場合）のフォールバック
+                    var clip = await Windows.Media.Editing.MediaClip.CreateFromFileAsync(file);
+                    var composition = new Windows.Media.Editing.MediaComposition();
+                    composition.Clips.Add(clip);
+                    
+                    // 先頭フレームを取得 (scaledHeightを0にすることでアスペクト比を維持)
+                    int targetWidth = (int)(TargetSize > 0 ? TargetSize : 100);
+                    var stream = await composition.GetThumbnailAsync(TimeSpan.Zero, targetWidth, 0, Windows.Media.Editing.VideoFramePrecision.NearestFrame);
+                    if (stream != null)
+                    {
+                        var bitmapImage = new BitmapImage();
+                        await bitmapImage.SetSourceAsync(stream);
+                        DisplayImage.Source = bitmapImage;
+                    }
+                    else
+                    {
+                        DisplayImage.Source = null;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load video thumbnail: {ex.Message}");
+                DisplayImage.Source = null;
+            }
         }
 
         private async Task LoadIcoAsync(string path)

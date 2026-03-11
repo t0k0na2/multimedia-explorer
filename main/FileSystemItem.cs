@@ -52,7 +52,7 @@ namespace main
         public Visibility FontIconVisibility => (!IsImage && !IsAudio && !IsVideo) ? Visibility.Visible : Visibility.Collapsed;
 
         // Imageの表示制御
-        public Visibility ImageIconVisibility => IsImage ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility ImageIconVisibility => (IsImage || IsVideo) ? Visibility.Visible : Visibility.Collapsed;
 
         // Audioボタンの表示制御
         public Visibility AudioButtonVisibility => IsAudio ? Visibility.Visible : Visibility.Collapsed;
