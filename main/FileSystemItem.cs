@@ -1,12 +1,20 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace main
 {
-    public class FileSystemItem
+    public class FileSystemItem : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         public string Name { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
         public bool IsFolder { get; set; }
@@ -14,6 +22,20 @@ namespace main
         // フォルダかファイルかによって表示するアイコンを決定
         // \uE8B7 = フォルダ, \uE8A5 = ファイル
         public string Icon => IsFolder ? "\uE8B7" : "\uE8A5";
+
+        private BitmapImage? _modelThumbnail;
+        public BitmapImage? ModelThumbnail
+        {
+            get => _modelThumbnail;
+            set
+            {
+                if (_modelThumbnail != value)
+                {
+                    _modelThumbnail = value;
+                    OnPropertyChanged(nameof(ModelThumbnail));
+                }
+            }
+        }
 
         // 画像ファイルかどうかを判定
         public bool IsImage

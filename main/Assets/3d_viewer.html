@@ -104,7 +104,10 @@
                     console.log(msg);
                     if (msg.action === 'load') {
                         console.log("load action: " + msg.action);
-                        loadModel(msg.url, msg.extension);
+                        loadModel(msg.url, msg.extension, false);
+                    } else if (msg.action === 'thumbnail') {
+                        console.log("thumbnail action: " + msg.action);
+                        loadModel(msg.url, msg.extension, true);
                     } else if (msg.action === 'clear') {
                         console.log("clear action: " + msg.action);
                         clearModel();
@@ -161,10 +164,12 @@
             if (material.envMap) material.envMap.dispose();
         }
 
-        function loadModel(url, extension) {
-            console.log("Loading model: " + url);
+        function loadModel(url, extension, isThumbnail) {
+            console.log("Loading model: " + url + ", isThumbnail: " + isThumbnail);
             clearModel();
-            loadingElement.style.display = 'block';
+            if (!isThumbnail) {
+                loadingElement.style.display = 'block';
+            }
 
             let loader;
             const ext = extension.toLowerCase();
@@ -185,8 +190,10 @@
             loader.load(
                 url, // model url
                 (object) => { // onLoad
-                    loadingElement.style.display = 'none';
-                    loadingElement.innerText = "読み込み中...";
+                    if (!isThumbnail) {
+                        loadingElement.style.display = 'none';
+                        loadingElement.innerText = "読み込み中...";
+                    }
 
                     // Center and scale the model
                     let root = (ext === '.gltf' || ext === '.glb') ? object.scene : object;
@@ -219,6 +226,15 @@
                     controls.target.set(0, 0, 0);
                     camera.position.set(0, defaultSize * 0.3, defaultSize * 1.5);
                     controls.update();
+
+                    if (isThumbnail) {
+                        // thumbnail logic
+                        renderer.render(scene, camera); // force render one frame
+                        setTimeout(() => {
+                           const dataUrl = renderer.domElement.toDataURL('image/png');
+                           window.chrome.webview.postMessage({ action: 'thumbnail_result', data: dataUrl, url: url });
+                        }, 100);
+                    }
                 },
                 (xhr) => { // onProgress
                     const percent = Math.floor((xhr.loaded / xhr.total) * 100);

@@ -68,9 +68,10 @@
                                     <Button Visibility="{x:Bind VideoButtonVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Padding="0" Click="VideoPlayButton_Click" Tag="{x:Bind Path}">
                                         <FontIcon Glyph="&#xE768;" FontSize="48" Margin="0" />
                                     </Button>
-                                    <Button Visibility="{x:Bind ModelButtonVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Padding="0" Click="ModelPlayButton_Click" Tag="{x:Bind Path}">
-                                        <FontIcon Glyph="&#xE943;" FontSize="48" Margin="0" />
+                                    <Button Visibility="{x:Bind ModelButtonVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#44000000" BorderThickness="0" Padding="0" Click="ModelPlayButton_Click" Tag="{x:Bind Path}">
+                                        <FontIcon Glyph="&#xE943;" FontSize="48" Margin="0" Foreground="White" />
                                     </Button>
+                                    <Image Source="{x:Bind ModelThumbnail, Mode=OneWay}" Visibility="{x:Bind ModelButtonVisibility}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Grid>
                             </Viewbox>
                             <TextBlock Text="{x:Bind Name}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
@@ -86,5 +87,8 @@
             <Button Content="&#xE711;" FontFamily="Segoe Fluent Icons" FontSize="20" Background="Transparent" Foreground="Black" 
                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20" Padding="10" Click="CloseModelViewer_Click" />
         </Grid>
+
+        <!-- Thumbnail Generator Hidden WebView2 -->
+        <controls:WebView2 x:Name="ThumbnailWebView" Visibility="Collapsed" Width="256" Height="256" />
     </Grid>
 </Window>
