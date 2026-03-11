@@ -10,6 +10,12 @@
 - **配布元**: [Google / WebM Project](https://developers.google.com/speed/webp)
 - **ライセンス**: [BSD 3-Clause License (WebM Software License)](https://www.webmproject.org/license/software/)
 
+### Three.js
+
+- **機能**: 3Dモデル（GLTF/GLB等）のレンダリング・プレビュー表示
+- **配布元**: [Three.js](https://threejs.org/)
+- **ライセンス**: [MIT License](https://github.com/mrdoob/three.js/blob/master/LICENSE)
+
 ### Microsoft 提供のライブラリ (NuGet Packages)
 
 本プロジェクトでは、以下のMicrosoft提供のライブラリ等を使用しています。これらは、MIT License または該当する Microsoft ソフトウェア ライセンス条項に基づき提供されています。
