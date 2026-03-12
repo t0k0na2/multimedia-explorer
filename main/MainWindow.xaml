@@ -56,7 +56,7 @@
                       PointerWheelChanged="FileSystemGridView_PointerWheelChanged">
                 <GridView.ItemTemplate>
                     <DataTemplate x:DataType="local:FileSystemItem">
-                        <StackPanel Width="{Binding ElementName=ZoomSlider, Path=Value}" Padding="8" Spacing="8" Background="Transparent" CornerRadius="4">
+                        <StackPanel DoubleTapped="FileSystemItem_DoubleTapped" Width="{Binding ElementName=ZoomSlider, Path=Value}" Padding="8" Spacing="8" Background="Transparent" CornerRadius="4">
                             <Viewbox Stretch="Uniform" StretchDirection="Both">
                                 <Grid Width="100" Height="100">
                                     <FontIcon Glyph="{x:Bind Icon}" FontSize="64" Visibility="{x:Bind FontIconVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"/>

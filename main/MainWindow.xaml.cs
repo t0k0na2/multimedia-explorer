@@ -477,6 +477,80 @@ namespace main
             }
         }
 
+        private void FileSystemItem_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        {
+            if (sender is FrameworkElement element && element.DataContext is FileSystemItem item)
+            {
+                if (item.IsFolder)
+                {
+                    SelectedDirectoryTextBlock.Text = item.Path;
+                    LoadDirectoryContents(item.Path);
+                    SelectTreeNodeFromPath(item.Path);
+                }
+            }
+        }
+
+        private void SelectTreeNodeFromPath(string targetPath)
+        {
+            // パスの正規化（末尾のセパレータ削除、小文字化での比較用）
+            targetPath = targetPath.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+            string targetPathLower = targetPath.ToLowerInvariant();
+
+            foreach (var rootNode in FolderTreeView.RootNodes)
+            {
+                var foundNode = FindNodeRecursive(rootNode, targetPathLower);
+                if (foundNode != null)
+                {
+                    // 見つかったノードを選択状態にする
+                    FolderTreeView.SelectedNode = foundNode;
+                    
+                    // 親ノードをすべて展開する
+                    var parent = foundNode.Parent;
+                    while (parent != null)
+                    {
+                        parent.IsExpanded = true;
+                        parent = parent.Parent;
+                    }
+                    return;
+                }
+            }
+        }
+
+        private Microsoft.UI.Xaml.Controls.TreeViewNode? FindNodeRecursive(Microsoft.UI.Xaml.Controls.TreeViewNode currentNode, string targetPathLower)
+        {
+            if (currentNode.Content is ExplorerItem item)
+            {
+                string nodePath = item.Path.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+                
+                // パスが一致すればこのノード
+                if (nodePath.ToLowerInvariant() == targetPathLower)
+                {
+                    return currentNode;
+                }
+
+                // 現在のノードのパスがターゲットパスの前方一致（親ディレクトリ）であるか確認
+                // ただし、空文字列のノード（"PC" や "クイックアクセス" の直下など）は常に探索対象とする
+                if (string.IsNullOrEmpty(nodePath) || targetPathLower.StartsWith(nodePath.ToLowerInvariant() + System.IO.Path.DirectorySeparatorChar))
+                {
+                    // 未展開のノードがあれば展開（子ノードを生成）してから探索
+                    if (currentNode.HasUnrealizedChildren)
+                    {
+                        FillTreeNode(currentNode);
+                    }
+
+                    foreach (var childNode in currentNode.Children)
+                    {
+                        var result = FindNodeRecursive(childNode, targetPathLower);
+                        if (result != null)
+                        {
+                            return result;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         private void FileSystemGridView_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
         {
             var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
