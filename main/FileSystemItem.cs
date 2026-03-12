@@ -1,12 +1,20 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace main
 {
-    public class FileSystemItem
+    public class FileSystemItem : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         public string Name { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
         public bool IsFolder { get; set; }
@@ -14,6 +22,20 @@ namespace main
         // フォルダかファイルかによって表示するアイコンを決定
         // \uE8B7 = フォルダ, \uE8A5 = ファイル
         public string Icon => IsFolder ? "\uE8B7" : "\uE8A5";
+
+        private BitmapImage? _modelThumbnail;
+        public BitmapImage? ModelThumbnail
+        {
+            get => _modelThumbnail;
+            set
+            {
+                if (_modelThumbnail != value)
+                {
+                    _modelThumbnail = value;
+                    OnPropertyChanged(nameof(ModelThumbnail));
+                }
+            }
+        }
 
         // 画像ファイルかどうかを判定
         public bool IsImage
@@ -48,8 +70,19 @@ namespace main
             }
         }
 
-        // FontIconの表示制御 (フォルダ、または画像・音声・動画以外のファイル)
-        public Visibility FontIconVisibility => (!IsImage && !IsAudio && !IsVideo) ? Visibility.Visible : Visibility.Collapsed;
+        // 3Dモデルかどうかを判定
+        public bool Is3DModel
+        {
+            get
+            {
+                if (IsFolder || string.IsNullOrEmpty(Path)) return false;
+                var ext = System.IO.Path.GetExtension(Path).ToLowerInvariant();
+                return ext == ".fbx" || ext == ".gltf" || ext == ".glb" || ext == ".obj";
+            }
+        }
+
+        // FontIconの表示制御 (フォルダ、または画像・音声・動画・3Dモデル以外のファイル)
+        public Visibility FontIconVisibility => (!IsImage && !IsAudio && !IsVideo && !Is3DModel) ? Visibility.Visible : Visibility.Collapsed;
 
         // Imageの表示制御
         public Visibility ImageIconVisibility => (IsImage || IsVideo) ? Visibility.Visible : Visibility.Collapsed;
@@ -59,6 +92,9 @@ namespace main
 
         // Videoボタンの表示制御
         public Visibility VideoButtonVisibility => IsVideo ? Visibility.Visible : Visibility.Collapsed;
+        
+        // 3Dモデルボタンの表示制御
+        public Visibility ModelButtonVisibility => Is3DModel ? Visibility.Visible : Visibility.Collapsed;
 
         // 画像ソース
         public BitmapImage? ImageSource

@@ -15,6 +15,9 @@ using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Media.Core;
 using Windows.Media.Playback;
+using Microsoft.Web.WebView2.Core;
+using Windows.Storage.Streams;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -34,6 +37,12 @@ namespace main
         private MediaPlayerElement? _currentVideoPlayerElement;
         private string? _currentVideoPlayingPath;
         private Button? _currentVideoPlayingButton;
+        private string? _currentModelDirectory;
+
+        // サムネイル生成用
+        private Queue<string> _thumbnailQueue = new Queue<string>();
+        private bool _isGeneratingThumbnail = false;
+        private string? _currentThumbnailDirectory;
 
         [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
         private static extern IntPtr ExtractIcon(IntPtr hInst, string lpszExeFileName, int nIconIndex);
@@ -64,6 +73,218 @@ namespace main
             _previewPlayer.MediaEnded += _previewPlayer_MediaEnded;
 
             InitializeFolderTree();
+            InitializeWebViewAsync();
+        }
+
+        private async void InitializeWebViewAsync()
+        {
+            try
+            {
+                await ModelWebView.EnsureCoreWebView2Async();
+                await ThumbnailWebView.EnsureCoreWebView2Async();
+                
+                string assetsPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets");
+                ModelWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    "appassets.local",
+                    assetsPath,
+                    CoreWebView2HostResourceAccessKind.Allow
+                );
+                ThumbnailWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    "appassets.local",
+                    assetsPath,
+                    CoreWebView2HostResourceAccessKind.Allow
+                );
+
+                ModelWebView.CoreWebView2.AddWebResourceRequestedFilter("http://models.local/*", CoreWebView2WebResourceContext.All);
+                ModelWebView.CoreWebView2.WebResourceRequested += CoreWebView2_WebResourceRequested;
+
+                ThumbnailWebView.CoreWebView2.AddWebResourceRequestedFilter("http://models.local/*", CoreWebView2WebResourceContext.All);
+                ThumbnailWebView.CoreWebView2.WebResourceRequested += ThumbnailWebView_WebResourceRequested;
+                ThumbnailWebView.CoreWebView2.WebMessageReceived += ThumbnailWebView_WebMessageReceived;
+
+                ModelWebView.Source = new Uri("http://appassets.local/3d_viewer.html");
+                ThumbnailWebView.Source = new Uri("http://appassets.local/3d_viewer.html");
+            }
+            catch (Exception ex)
+            {
+                SelectedDirectoryTextBlock.Text = $"WebView2 初期化エラー: {ex.Message}";
+            }
+        }
+
+        private async void CoreWebView2_WebResourceRequested(CoreWebView2 sender, CoreWebView2WebResourceRequestedEventArgs args)
+        {
+            string uriPattern = "http://models.local/";
+            if (args.Request.Uri.StartsWith(uriPattern, StringComparison.OrdinalIgnoreCase))
+            {
+                var deferral = args.GetDeferral();
+                try
+                {
+                    string relativePath = args.Request.Uri.Substring(uriPattern.Length);
+                    relativePath = Uri.UnescapeDataString(relativePath);
+                    
+                    int queryIndex = relativePath.IndexOf('?');
+                    if (queryIndex > 0)
+                    {
+                        relativePath = relativePath.Substring(0, queryIndex);
+                    }
+                    
+                    relativePath = relativePath.Replace('/', '\\');
+
+                    if (!string.IsNullOrEmpty(_currentModelDirectory))
+                    {
+                        string fullPath = System.IO.Path.Combine(_currentModelDirectory, relativePath);
+                        if (System.IO.File.Exists(fullPath))
+                        {
+                            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(fullPath);
+                            var stream = await file.OpenReadAsync();
+                            string extension = System.IO.Path.GetExtension(fullPath).ToLowerInvariant();
+                            string contentType = "application/octet-stream";
+                            if (extension == ".png") contentType = "image/png";
+                            else if (extension == ".jpg" || extension == ".jpeg") contentType = "image/jpeg";
+                            else if (extension == ".glb") contentType = "model/gltf-binary";
+                            else if (extension == ".gltf") contentType = "model/gltf+json";
+                            else if (extension == ".obj") contentType = "text/plain";
+                            else if (extension == ".mtl") contentType = "text/plain";
+                            else if (extension == ".fbx") contentType = "application/octet-stream";
+                            
+                            var response = sender.Environment.CreateWebResourceResponse(
+                                stream,
+                                200,
+                                "OK",
+                                $"Access-Control-Allow-Origin: *\nContent-Type: {contentType}"
+                            );
+                            args.Response = response;
+                            return;
+                        }
+                    }
+                    
+                    args.Response = sender.Environment.CreateWebResourceResponse(null, 404, "Not Found", "Access-Control-Allow-Origin: *");
+                }
+                catch (Exception)
+                {
+                    args.Response = sender.Environment.CreateWebResourceResponse(null, 500, "Internal Server Error", "Access-Control-Allow-Origin: *");
+                }
+                finally
+                {
+                    deferral.Complete();
+                }
+            }
+        }
+
+        private async void ThumbnailWebView_WebResourceRequested(CoreWebView2 sender, CoreWebView2WebResourceRequestedEventArgs args)
+        {
+            string uriPattern = "http://models.local/";
+            if (args.Request.Uri.StartsWith(uriPattern, StringComparison.OrdinalIgnoreCase))
+            {
+                var deferral = args.GetDeferral();
+                try
+                {
+                    string relativePath = args.Request.Uri.Substring(uriPattern.Length);
+                    relativePath = Uri.UnescapeDataString(relativePath);
+                    
+                    int queryIndex = relativePath.IndexOf('?');
+                    if (queryIndex > 0)
+                    {
+                        relativePath = relativePath.Substring(0, queryIndex);
+                    }
+                    
+                    relativePath = relativePath.Replace('/', '\\');
+
+                    if (!string.IsNullOrEmpty(_currentThumbnailDirectory))
+                    {
+                        string fullPath = System.IO.Path.Combine(_currentThumbnailDirectory, relativePath);
+                        if (System.IO.File.Exists(fullPath))
+                        {
+                            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(fullPath);
+                            var stream = await file.OpenReadAsync();
+                            string extension = System.IO.Path.GetExtension(fullPath).ToLowerInvariant();
+                            string contentType = "application/octet-stream";
+                            if (extension == ".png") contentType = "image/png";
+                            else if (extension == ".jpg" || extension == ".jpeg") contentType = "image/jpeg";
+                            else if (extension == ".glb") contentType = "model/gltf-binary";
+                            else if (extension == ".gltf") contentType = "model/gltf+json";
+                            else if (extension == ".obj") contentType = "text/plain";
+                            else if (extension == ".mtl") contentType = "text/plain";
+                            else if (extension == ".fbx") contentType = "application/octet-stream";
+                            
+                            var response = sender.Environment.CreateWebResourceResponse(
+                                stream,
+                                200,
+                                "OK",
+                                $"Access-Control-Allow-Origin: *\nContent-Type: {contentType}"
+                            );
+                            args.Response = response;
+                            return;
+                        }
+                    }
+                    
+                    args.Response = sender.Environment.CreateWebResourceResponse(null, 404, "Not Found", "Access-Control-Allow-Origin: *");
+                }
+                catch (Exception)
+                {
+                    args.Response = sender.Environment.CreateWebResourceResponse(null, 500, "Internal Server Error", "Access-Control-Allow-Origin: *");
+                }
+                finally
+                {
+                    deferral.Complete();
+                }
+            }
+        }
+
+        private async void ThumbnailWebView_WebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
+        {
+            try
+            {
+                string json = args.WebMessageAsJson;
+                var parsed = System.Text.Json.JsonDocument.Parse(json).RootElement;
+                if (parsed.TryGetProperty("action", out var actionElement) && actionElement.GetString() == "thumbnail_result")
+                {
+                    if (parsed.TryGetProperty("data", out var dataElement) && parsed.TryGetProperty("url", out var urlElement))
+                    {
+                        string dataUrl = dataElement.GetString() ?? "";
+                        string virtualUrl = urlElement.GetString() ?? "";
+
+                        if (dataUrl.StartsWith("data:image/png;base64,"))
+                        {
+                            string base64 = dataUrl.Substring("data:image/png;base64,".Length);
+                            byte[] bytes = Convert.FromBase64String(base64);
+
+                            using (var stream = new InMemoryRandomAccessStream())
+                            {
+                                using (var writer = new DataWriter(stream.GetOutputStreamAt(0)))
+                                {
+                                    writer.WriteBytes(bytes);
+                                    await writer.StoreAsync();
+                                }
+                                
+                                var bitmapImage = new BitmapImage();
+                                await bitmapImage.SetSourceAsync(stream);
+
+                                // Find the corresponding FileSystemItem
+                                string fileName = Uri.UnescapeDataString(virtualUrl.Substring("http://models.local/".Length));
+                                if (!string.IsNullOrEmpty(_currentThumbnailDirectory))
+                                {
+                                    string fullPath = System.IO.Path.Combine(_currentThumbnailDirectory, fileName);
+                                    var item = FilesAndFolders.FirstOrDefault(f => f.Path == fullPath);
+                                    if (item != null)
+                                    {
+                                        item.ModelThumbnail = bitmapImage;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Thumbnail generation error: {ex.Message}");
+            }
+            finally
+            {
+                _isGeneratingThumbnail = false;
+                ProcessThumbnailQueue(); // Process next in queue
+            }
         }
 
         private void InitializeFolderTree()
@@ -187,6 +408,9 @@ namespace main
         private void LoadDirectoryContents(string path)
         {
             FilesAndFolders.Clear();
+            _thumbnailQueue.Clear();
+            _isGeneratingThumbnail = false;
+            _currentThumbnailDirectory = path;
 
             try
             {
@@ -206,18 +430,50 @@ namespace main
                 // ファイルの追加
                 foreach (var file in dirInfo.GetFiles())
                 {
-                    FilesAndFolders.Add(new FileSystemItem
+                    var item = new FileSystemItem
                     {
                         Name = file.Name,
                         Path = file.FullName,
                         IsFolder = false
-                    });
+                    };
+                    FilesAndFolders.Add(item);
+
+                    if (item.Is3DModel)
+                    {
+                        _thumbnailQueue.Enqueue(item.Path);
+                    }
                 }
+
+                ProcessThumbnailQueue();
             }
             catch (Exception ex)
             {
                 // アクセス権限がない場合などのエラー処理
                 SelectedDirectoryTextBlock.Text = $"エラー: {ex.Message}";
+            }
+        }
+
+        private void ProcessThumbnailQueue()
+        {
+            if (_isGeneratingThumbnail || _thumbnailQueue.Count == 0)
+                return;
+
+            _isGeneratingThumbnail = true;
+            string path = _thumbnailQueue.Dequeue();
+
+            try
+            {
+                string fileName = System.IO.Path.GetFileName(path);
+                string extension = System.IO.Path.GetExtension(path).ToLowerInvariant();
+                string virtualUrl = $"http://models.local/{Uri.EscapeDataString(fileName)}";
+
+                string message = $"{{\"action\":\"thumbnail\", \"url\":\"{virtualUrl}\", \"extension\":\"{extension}\"}}";
+                ThumbnailWebView.CoreWebView2.PostWebMessageAsJson(message);
+            }
+            catch (Exception)
+            {
+                _isGeneratingThumbnail = false;
+                ProcessThumbnailQueue(); // Skip and try next
             }
         }
 
@@ -418,6 +674,42 @@ namespace main
                 _currentVideoPlayerElement = null;
                 _currentVideoPlayingButton = null;
             });
+        }
+
+        private void ModelPlayButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string path)
+            {
+                try
+                {
+                    // Map the folder containing the model
+                    string directoryPath = System.IO.Path.GetDirectoryName(path) ?? "";
+                    if (!string.IsNullOrEmpty(directoryPath))
+                    {
+                        _currentModelDirectory = directoryPath;
+
+                        string fileName = System.IO.Path.GetFileName(path);
+                        string extension = System.IO.Path.GetExtension(path).ToLowerInvariant();
+                        string virtualUrl = $"http://models.local/{Uri.EscapeDataString(fileName)}";
+
+                        string message = $"{{\"action\":\"load\", \"url\":\"{virtualUrl}\", \"extension\":\"{extension}\"}}";
+                        ModelWebView.CoreWebView2.PostWebMessageAsJson(message);
+                        
+                        ModelViewerOverlay.Visibility = Visibility.Visible;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SelectedDirectoryTextBlock.Text = $"3Dモデル読み込みエラー: {ex.Message}";
+                }
+            }
+        }
+
+        private void CloseModelViewer_Click(object sender, RoutedEventArgs e)
+        {
+            ModelViewerOverlay.Visibility = Visibility.Collapsed;
+            string message = "{\"action\":\"clear\"}";
+            ModelWebView.CoreWebView2.PostWebMessageAsJson(message);
         }
     }
 }

@@ -1,0 +1,14 @@
+{
+  "name": "multimedia-explorer-main",
+  "version": "1.0.0",
+  "description": "Three.js assets for Multimedia Explorer",
+  "scripts": {
+    "build": "esbuild Assets/3d_viewer.js --bundle --minify --outfile=Assets/3d_viewer.bundle.js"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  }
+}

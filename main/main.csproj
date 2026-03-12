@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
@@ -29,6 +29,9 @@
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <Content Include="Assets\3d_viewer.bundle.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -47,6 +50,7 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
     <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3179.45" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NativeMediaWinRT\NativeMediaWinRT.vcxproj" />
@@ -87,6 +91,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
   </PropertyGroup>
+
+  <Target Name="NpmInstallAndBuild" BeforeTargets="BeforeBuild">
+    <Exec Command="npm install" ContinueOnError="false" />
+    <Exec Command="npm run build" ContinueOnError="false" />
+  </Target>
+
 	<Target Name="DeleteLanguageFolders" AfterTargets="Publish">
 		<ItemGroup>
 			<_PublishSubDirectories Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)'))" />
