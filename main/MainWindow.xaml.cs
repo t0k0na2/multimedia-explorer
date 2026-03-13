@@ -21,6 +21,10 @@ using Windows.Storage.Streams;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
+using Windows.Graphics;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
+using System.Text.Json;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -42,6 +46,10 @@ namespace main
         private Button? _currentVideoPlayingButton;
         private string? _currentModelDirectory;
 
+        private AppWindow? _appWindow;
+        private RectInt32 _lastNormalBounds;
+        private string _settingsPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MultimediaExplorer", "window_settings.json");
+
         // サムネイル生成用
         private Queue<string> _thumbnailQueue = new Queue<string>();
         private bool _isGeneratingThumbnail = false;
@@ -56,8 +64,8 @@ namespace main
             
             // アプリケーションウィンドウのアイコンを設定
             var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            Microsoft.UI.WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
-            var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+            WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
+            _appWindow = AppWindow.GetFromWindowId(windowId);
             
             // 実行ファイル自体からアイコンを抽出してタイトルバーに適用する
             string? exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
@@ -66,10 +74,13 @@ namespace main
                 IntPtr hIcon = ExtractIcon(IntPtr.Zero, exePath, 0);
                 if (hIcon != IntPtr.Zero)
                 {
-                    Microsoft.UI.IconId iconId = Microsoft.UI.Win32Interop.GetIconIdFromIcon(hIcon);
-                    appWindow.SetIcon(iconId);
+                    IconId iconId = Win32Interop.GetIconIdFromIcon(hIcon);
+                    _appWindow.SetIcon(iconId);
                 }
             }
+
+            _appWindow.Changed += AppWindow_Changed;
+            _appWindow.Closing += AppWindow_Closing;
 
             FileSystemGridView.ItemsSource = FilesAndFolders;
             _previewPlayer = new MediaPlayer();
@@ -77,6 +88,9 @@ namespace main
 
             InitializeFolderTree();
             InitializeWebViewAsync();
+
+            // ウィンドウ状態の復元
+            RestoreWindowState();
         }
 
         private async void InitializeWebViewAsync()
@@ -1262,6 +1276,100 @@ namespace main
             }
         }
 
+
+        private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
+        {
+            if (args.DidPositionChange || args.DidSizeChange)
+            {
+                if (sender.Presenter is OverlappedPresenter presenter && presenter.State == OverlappedPresenterState.Restored)
+                {
+                    _lastNormalBounds = new RectInt32(sender.Position.X, sender.Position.Y, sender.Size.Width, sender.Size.Height);
+                }
+            }
+        }
+
+        private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+        {
+            SaveWindowState();
+        }
+
+        private void RestoreWindowState()
+        {
+            if (_appWindow == null) return;
+
+            try
+            {
+                if (File.Exists(_settingsPath))
+                {
+                    string json = File.ReadAllText(_settingsPath);
+                    var settings = JsonSerializer.Deserialize<WindowSettings>(json);
+
+                    if (settings != null)
+                    {
+                        // 前回の位置とサイズを適用
+                        _appWindow.MoveAndResize(new RectInt32(settings.X, settings.Y, settings.Width, settings.Height));
+                        _lastNormalBounds = new RectInt32(settings.X, settings.Y, settings.Width, settings.Height);
+
+                        // 最大化状態の適用
+                        if (settings.IsMaximized)
+                        {
+                            if (_appWindow.Presenter is OverlappedPresenter presenter)
+                            {
+                                presenter.Maximize();
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // デフォルトの通常サイズを現在の状態から取得
+                    _lastNormalBounds = new RectInt32(_appWindow.Position.X, _appWindow.Position.Y, _appWindow.Size.Width, _appWindow.Size.Height);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to restore window state: {ex.Message}");
+            }
+        }
+
+        private void SaveWindowState()
+        {
+            if (_appWindow == null) return;
+
+            try
+            {
+                var settings = new WindowSettings
+                {
+                    X = _lastNormalBounds.X,
+                    Y = _lastNormalBounds.Y,
+                    Width = _lastNormalBounds.Width,
+                    Height = _lastNormalBounds.Height,
+                    IsMaximized = (_appWindow.Presenter is OverlappedPresenter presenter) && (presenter.State == OverlappedPresenterState.Maximized)
+                };
+
+                string directory = System.IO.Path.GetDirectoryName(_settingsPath)!;
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                string json = JsonSerializer.Serialize(settings);
+                File.WriteAllText(_settingsPath, json);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to save window state: {ex.Message}");
+            }
+        }
+
+        private class WindowSettings
+        {
+            public int X { get; set; }
+            public int Y { get; set; }
+            public int Width { get; set; }
+            public int Height { get; set; }
+            public bool IsMaximized { get; set; }
+        }
 
     }
 }
