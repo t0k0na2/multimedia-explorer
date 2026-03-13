@@ -26,7 +26,8 @@
                   SelectionMode="Single"
                   Expanding="FolderTreeView_Expanding" 
                   ItemInvoked="FolderTreeView_ItemInvoked"
-                  Padding="8,16,8,8">
+                  Padding="8,16,8,8"
+                  KeyDown="FolderTreeView_KeyDown">
             <TreeView.ItemTemplate>
                 <DataTemplate x:DataType="TreeViewNode">
                     <StackPanel Orientation="Horizontal" Spacing="8">

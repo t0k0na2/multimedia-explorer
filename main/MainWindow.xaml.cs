@@ -19,6 +19,8 @@ using Windows.Media.Playback;
 using Microsoft.Web.WebView2.Core;
 using Windows.Storage.Streams;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -835,10 +837,38 @@ namespace main
         /// <summary>
         /// GridViewのキーダウンイベントハンドラー
         /// Delete: ゴミ箱へ移動、Shift+Delete: 完全削除
+        /// Ctrl+C: クリップボードへコピー、Ctrl+V: クリップボードからペースト
         /// </summary>
         private async void FileSystemGridView_KeyDown(object sender, KeyRoutedEventArgs e)
         {
-            if (e.Key == Windows.System.VirtualKey.Delete)
+            var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
+            bool isCtrlPressed = ctrlState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            if (isCtrlPressed && e.Key == Windows.System.VirtualKey.C)
+            {
+                // Ctrl+C: 選択アイテムをクリップボードにコピー
+                var selectedItems = FileSystemGridView.SelectedItems
+                    .OfType<FileSystemItem>()
+                    .Select(item => item.Path)
+                    .ToList();
+
+                if (selectedItems.Count > 0)
+                {
+                    await CopyPathsToClipboard(selectedItems);
+                }
+                e.Handled = true;
+            }
+            else if (isCtrlPressed && e.Key == Windows.System.VirtualKey.V)
+            {
+                // Ctrl+V: クリップボードからペースト
+                string? targetDir = GetCurrentDirectoryPath();
+                if (!string.IsNullOrEmpty(targetDir))
+                {
+                    await PasteFilesFromClipboardAsync(targetDir);
+                }
+                e.Handled = true;
+            }
+            else if (e.Key == Windows.System.VirtualKey.Delete)
             {
                 var selectedItems = FileSystemGridView.SelectedItems
                     .OfType<FileSystemItem>()
@@ -853,6 +883,208 @@ namespace main
                 await DeleteSelectedItemsAsync(selectedItems, permanentDelete: isShiftPressed);
                 e.Handled = true;
             }
+        }
+
+        /// <summary>
+        /// TreeViewのキーダウンイベントハンドラー
+        /// Ctrl+C: 選択フォルダをクリップボードにコピー
+        /// Ctrl+V: 選択フォルダへクリップボードからペースト
+        /// </summary>
+        private async void FolderTreeView_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
+            bool isCtrlPressed = ctrlState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            if (!isCtrlPressed) return;
+
+            if (e.Key == Windows.System.VirtualKey.C)
+            {
+                // Ctrl+C: 選択フォルダをクリップボードにコピー
+                if (FolderTreeView.SelectedNode?.Content is ExplorerItem item && !string.IsNullOrEmpty(item.Path))
+                {
+                    await CopyPathsToClipboard(new List<string> { item.Path });
+                }
+                e.Handled = true;
+            }
+            else if (e.Key == Windows.System.VirtualKey.V)
+            {
+                // Ctrl+V: 選択フォルダへクリップボードからペースト
+                if (FolderTreeView.SelectedNode?.Content is ExplorerItem item && !string.IsNullOrEmpty(item.Path))
+                {
+                    await PasteFilesFromClipboardAsync(item.Path);
+                }
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// 指定されたパスのファイル・フォルダをクリップボードにコピーする
+        /// </summary>
+        /// <param name="paths">コピー対象のパスリスト</param>
+        private async System.Threading.Tasks.Task CopyPathsToClipboard(List<string> paths)
+        {
+            try
+            {
+                var storageItems = new List<IStorageItem>();
+
+                foreach (var path in paths)
+                {
+                    try
+                    {
+                        if (System.IO.Directory.Exists(path))
+                        {
+                            var folder = await StorageFolder.GetFolderFromPathAsync(path);
+                            storageItems.Add(folder);
+                        }
+                        else if (System.IO.File.Exists(path))
+                        {
+                            var file = await StorageFile.GetFileFromPathAsync(path);
+                            storageItems.Add(file);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"クリップボードへのアイテム追加に失敗: {path} - {ex.Message}");
+                    }
+                }
+
+                if (storageItems.Count > 0)
+                {
+                    var dataPackage = new DataPackage();
+                    dataPackage.RequestedOperation = DataPackageOperation.Copy;
+                    dataPackage.SetStorageItems(storageItems);
+                    Clipboard.SetContent(dataPackage);
+                    Clipboard.Flush();
+                }
+            }
+            catch (Exception ex)
+            {
+                SelectedDirectoryTextBlock.Text = $"コピーに失敗しました: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// クリップボードのファイル・フォルダを指定ディレクトリにペーストする
+        /// </summary>
+        /// <param name="targetDirectoryPath">ペースト先のディレクトリパス</param>
+        private async System.Threading.Tasks.Task PasteFilesFromClipboardAsync(string targetDirectoryPath)
+        {
+            try
+            {
+                var content = Clipboard.GetContent();
+                if (!content.Contains(StandardDataFormats.StorageItems)) return;
+
+                var items = await content.GetStorageItemsAsync();
+                if (items == null || items.Count == 0) return;
+
+                int successCount = 0;
+                var failedItems = new List<string>();
+
+                foreach (var item in items)
+                {
+                    try
+                    {
+                        if (item is StorageFile file)
+                        {
+                            // ファイルのコピー
+                            string destPath = GetUniqueDestinationPath(
+                                System.IO.Path.Combine(targetDirectoryPath, file.Name));
+                            string destFileName = System.IO.Path.GetFileName(destPath);
+                            var destFolder = await StorageFolder.GetFolderFromPathAsync(targetDirectoryPath);
+                            await file.CopyAsync(destFolder, destFileName, NameCollisionOption.GenerateUniqueName);
+                            successCount++;
+                        }
+                        else if (item is StorageFolder folder)
+                        {
+                            // フォルダのコピー（再帰的）
+                            string destPath = GetUniqueDestinationPath(
+                                System.IO.Path.Combine(targetDirectoryPath, folder.Name));
+                            string destFolderName = System.IO.Path.GetFileName(destPath);
+                            var destParent = await StorageFolder.GetFolderFromPathAsync(targetDirectoryPath);
+                            var newFolder = await destParent.CreateFolderAsync(destFolderName, CreationCollisionOption.GenerateUniqueName);
+                            await CopyFolderContentsAsync(folder, newFolder);
+                            successCount++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failedItems.Add($"{item.Name}: {ex.Message}");
+                    }
+                }
+
+                // ペースト完了後、現在表示中のディレクトリを再読込
+                string? currentDir = GetCurrentDirectoryPath();
+                if (!string.IsNullOrEmpty(currentDir) && 
+                    currentDir.Equals(targetDirectoryPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    LoadDirectoryContents(currentDir);
+                }
+
+                if (failedItems.Count > 0)
+                {
+                    SelectedDirectoryTextBlock.Text = $"ペーストに失敗したアイテム: {string.Join(", ", failedItems)}";
+                }
+            }
+            catch (Exception ex)
+            {
+                SelectedDirectoryTextBlock.Text = $"ペーストに失敗しました: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// フォルダの内容を再帰的にコピーする
+        /// </summary>
+        private async System.Threading.Tasks.Task CopyFolderContentsAsync(StorageFolder source, StorageFolder destination)
+        {
+            // ファイルをコピー
+            foreach (var file in await source.GetFilesAsync())
+            {
+                await file.CopyAsync(destination, file.Name, NameCollisionOption.GenerateUniqueName);
+            }
+
+            // サブフォルダを再帰的にコピー
+            foreach (var subFolder in await source.GetFoldersAsync())
+            {
+                var newSubFolder = await destination.CreateFolderAsync(subFolder.Name, CreationCollisionOption.GenerateUniqueName);
+                await CopyFolderContentsAsync(subFolder, newSubFolder);
+            }
+        }
+
+        /// <summary>
+        /// 同名のファイル・フォルダが存在する場合、ユニークなパスを生成する
+        /// </summary>
+        private string GetUniqueDestinationPath(string path)
+        {
+            if (!System.IO.File.Exists(path) && !System.IO.Directory.Exists(path))
+                return path;
+
+            string directory = System.IO.Path.GetDirectoryName(path) ?? "";
+            string nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(path);
+            string extension = System.IO.Path.GetExtension(path);
+
+            int counter = 2;
+            string newPath;
+            do
+            {
+                // "ファイル名 (2).ext" のような形式
+                newPath = System.IO.Path.Combine(directory, $"{nameWithoutExt} ({counter}){extension}");
+                counter++;
+            } while (System.IO.File.Exists(newPath) || System.IO.Directory.Exists(newPath));
+
+            return newPath;
+        }
+
+        /// <summary>
+        /// 現在表示中のディレクトリパスを取得する
+        /// </summary>
+        private string? GetCurrentDirectoryPath()
+        {
+            string text = SelectedDirectoryTextBlock.Text;
+            if (!string.IsNullOrEmpty(text) && System.IO.Directory.Exists(text))
+            {
+                return text;
+            }
+            return null;
         }
 
         /// <summary>
