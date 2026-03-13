@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.VisualBasic.FileIO;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
@@ -800,6 +801,109 @@ namespace main
             ModelViewerOverlay.Visibility = Visibility.Collapsed;
             string message = "{\"action\":\"clear\"}";
             ModelWebView.CoreWebView2.PostWebMessageAsJson(message);
+        }
+
+        /// <summary>
+        /// GridViewのキーダウンイベントハンドラー
+        /// Delete: ゴミ箱へ移動、Shift+Delete: 完全削除
+        /// </summary>
+        private async void FileSystemGridView_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Delete)
+            {
+                var selectedItems = FileSystemGridView.SelectedItems
+                    .OfType<FileSystemItem>()
+                    .ToList();
+
+                if (selectedItems.Count == 0) return;
+
+                // Shiftキーが押されているか確認
+                var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
+                bool isShiftPressed = shiftState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+                await DeleteSelectedItemsAsync(selectedItems, permanentDelete: isShiftPressed);
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// 選択されたアイテムを削除する
+        /// </summary>
+        /// <param name="items">削除対象のアイテムリスト</param>
+        /// <param name="permanentDelete">trueなら完全削除、falseならゴミ箱へ移動</param>
+        private async System.Threading.Tasks.Task DeleteSelectedItemsAsync(List<FileSystemItem> items, bool permanentDelete)
+        {
+            // 完全削除の場合は確認ダイアログを表示
+            if (permanentDelete)
+            {
+                string itemNames = string.Join("\n", items.Select(i => i.Name));
+                string message = items.Count == 1
+                    ? $"「{items[0].Name}」を完全に削除しますか？\nこの操作は元に戻せません。"
+                    : $"{items.Count} 個のアイテムを完全に削除しますか？\nこの操作は元に戻せません。";
+
+                var dialog = new ContentDialog
+                {
+                    Title = "完全削除の確認",
+                    Content = message,
+                    PrimaryButtonText = "削除",
+                    CloseButtonText = "キャンセル",
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result != ContentDialogResult.Primary) return;
+            }
+
+            int successCount = 0;
+            var failedItems = new List<string>();
+
+            foreach (var item in items)
+            {
+                try
+                {
+                    if (item.IsFolder)
+                    {
+                        if (permanentDelete)
+                        {
+                            // 完全削除
+                            System.IO.Directory.Delete(item.Path, recursive: true);
+                        }
+                        else
+                        {
+                            // ゴミ箱へ移動
+                            FileSystem.DeleteDirectory(item.Path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                        }
+                    }
+                    else
+                    {
+                        if (permanentDelete)
+                        {
+                            // 完全削除
+                            System.IO.File.Delete(item.Path);
+                        }
+                        else
+                        {
+                            // ゴミ箱へ移動
+                            FileSystem.DeleteFile(item.Path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                        }
+                    }
+
+                    FilesAndFolders.Remove(item);
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    failedItems.Add($"{item.Name}: {ex.Message}");
+                }
+            }
+
+            // エラーがあった場合はステータスバーに表示
+            if (failedItems.Count > 0)
+            {
+                string errorMessage = $"削除に失敗したアイテム: {string.Join(", ", failedItems)}";
+                SelectedDirectoryTextBlock.Text = errorMessage;
+            }
         }
     }
 }

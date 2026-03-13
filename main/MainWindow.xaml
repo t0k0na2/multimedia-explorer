@@ -52,8 +52,9 @@
             </StackPanel>
 
             <!-- GridView for Files and Folders -->
-            <GridView Grid.Row="1" x:Name="FileSystemGridView" Padding="16" SelectionMode="Single"
-                      PointerWheelChanged="FileSystemGridView_PointerWheelChanged">
+            <GridView Grid.Row="1" x:Name="FileSystemGridView" Padding="16" SelectionMode="Extended"
+                      PointerWheelChanged="FileSystemGridView_PointerWheelChanged"
+                      KeyDown="FileSystemGridView_KeyDown">
                 <GridView.ItemTemplate>
                     <DataTemplate x:DataType="local:FileSystemItem">
                         <StackPanel DoubleTapped="FileSystemItem_DoubleTapped" Width="{Binding ElementName=ZoomSlider, Path=Value}" Padding="8" Spacing="8" Background="Transparent" CornerRadius="4">
