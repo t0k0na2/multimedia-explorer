@@ -867,9 +867,6 @@ namespace main
         /// </summary>
         private async void GridViewCopyMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            // GridViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
-            if (!IsFocusedOrHasFocusedChild(FileSystemGridView)) return;
-
             var selectedPaths = FileSystemGridView.SelectedItems
                 .OfType<FileSystemItem>()
                 .Select(item => item.Path)
@@ -889,9 +886,6 @@ namespace main
         /// </summary>
         private async void GridViewPasteMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            // GridViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
-            if (!IsFocusedOrHasFocusedChild(FileSystemGridView)) return;
-
             // クリップボードにファイルデータがなければ何もしない
             if (!Clipboard.GetContent().Contains(StandardDataFormats.StorageItems)) return;
 
@@ -910,9 +904,6 @@ namespace main
         /// </summary>
         private async void GridViewDeleteMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            // GridViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
-            if (!IsFocusedOrHasFocusedChild(FileSystemGridView)) return;
-
             var selectedItems = FileSystemGridView.SelectedItems
                 .OfType<FileSystemItem>()
                 .ToList();
@@ -931,9 +922,6 @@ namespace main
         /// </summary>
         private async void GridViewPermanentDeleteMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            // GridViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
-            if (!IsFocusedOrHasFocusedChild(FileSystemGridView)) return;
-
             var selectedItems = FileSystemGridView.SelectedItems
                 .OfType<FileSystemItem>()
                 .ToList();
@@ -977,9 +965,6 @@ namespace main
         /// </summary>
         private async void TreeViewCopyMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            // TreeViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
-            if (!IsFocusedOrHasFocusedChild(FolderTreeView)) return;
-
             // 選択フォルダがなければ何もしない（アクセラレーション経由でも安全に処理）
             if (FolderTreeView.SelectedNode?.Content is not ExplorerItem item
                 || string.IsNullOrEmpty(item.Path)) return;
@@ -995,9 +980,6 @@ namespace main
         /// </summary>
         private async void TreeViewPasteMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            // TreeViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
-            if (!IsFocusedOrHasFocusedChild(FolderTreeView)) return;
-
             // 選択フォルダがなければ何もしない（アクセラレーション経由でも安全に処理）
             if (FolderTreeView.SelectedNode?.Content is not ExplorerItem item
                 || string.IsNullOrEmpty(item.Path)) return;
@@ -1281,28 +1263,5 @@ namespace main
         }
 
 
-        /// <summary>
-        /// 指定したコントロールまたはその子要素にフォーカスがあるかを確認する
-        /// </summary>
-        private bool IsFocusedOrHasFocusedChild(DependencyObject container)
-        {
-            if (this.Content == null || this.Content.XamlRoot == null) return false;
-
-            var focusedElement = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(this.Content.XamlRoot);
-            if (focusedElement == null) return false;
-
-            if (ReferenceEquals(focusedElement, container)) return true;
-
-            if (focusedElement is DependencyObject focusedDep)
-            {
-                DependencyObject? current = focusedDep;
-                while (current != null)
-                {
-                    if (ReferenceEquals(current, container)) return true;
-                    current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
-                }
-            }
-            return false;
-        }
     }
 }

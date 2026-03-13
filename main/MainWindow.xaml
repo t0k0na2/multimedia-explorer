@@ -36,7 +36,7 @@
                                     Icon="Copy"
                                     Click="TreeViewCopyMenuItem_Click">
                         <MenuFlyoutItem.KeyboardAccelerators>
-                            <KeyboardAccelerator Modifiers="Control" Key="C" />
+                            <KeyboardAccelerator Modifiers="Control" Key="C" ScopeOwner="{x:Bind FolderTreeView}" />
                         </MenuFlyoutItem.KeyboardAccelerators>
                     </MenuFlyoutItem>
                     <!-- ペースト -->
@@ -45,7 +45,7 @@
                                     Icon="Paste"
                                     Click="TreeViewPasteMenuItem_Click">
                         <MenuFlyoutItem.KeyboardAccelerators>
-                            <KeyboardAccelerator Modifiers="Control" Key="V" />
+                            <KeyboardAccelerator Modifiers="Control" Key="V" ScopeOwner="{x:Bind FolderTreeView}" />
                         </MenuFlyoutItem.KeyboardAccelerators>
                     </MenuFlyoutItem>
                 </MenuFlyout>
@@ -86,7 +86,7 @@
                                         Icon="Copy"
                                         Click="GridViewCopyMenuItem_Click">
                             <MenuFlyoutItem.KeyboardAccelerators>
-                                <KeyboardAccelerator Modifiers="Control" Key="C" />
+                                <KeyboardAccelerator Modifiers="Control" Key="C" ScopeOwner="{x:Bind FileSystemGridView}" />
                             </MenuFlyoutItem.KeyboardAccelerators>
                         </MenuFlyoutItem>
                         <!-- 貼り付け -->
@@ -95,7 +95,7 @@
                                         Icon="Paste"
                                         Click="GridViewPasteMenuItem_Click">
                             <MenuFlyoutItem.KeyboardAccelerators>
-                                <KeyboardAccelerator Modifiers="Control" Key="V" />
+                                <KeyboardAccelerator Modifiers="Control" Key="V" ScopeOwner="{x:Bind FileSystemGridView}" />
                             </MenuFlyoutItem.KeyboardAccelerators>
                         </MenuFlyoutItem>
                         <MenuFlyoutSeparator />
@@ -107,7 +107,7 @@
                                 <FontIcon Glyph="&#xE74D;"/>
                             </MenuFlyoutItem.Icon>
                             <MenuFlyoutItem.KeyboardAccelerators>
-                                <KeyboardAccelerator Key="Delete" />
+                                <KeyboardAccelerator Key="Delete" ScopeOwner="{x:Bind FileSystemGridView}" />
                             </MenuFlyoutItem.KeyboardAccelerators>
                         </MenuFlyoutItem>
                         <!-- 完全削除 -->
@@ -118,7 +118,7 @@
                                 <FontIcon Glyph="&#xE74D;"/>
                             </MenuFlyoutItem.Icon>
                             <MenuFlyoutItem.KeyboardAccelerators>
-                                <KeyboardAccelerator Modifiers="Shift" Key="Delete" />
+                                <KeyboardAccelerator Modifiers="Shift" Key="Delete" ScopeOwner="{x:Bind FileSystemGridView}" />
                             </MenuFlyoutItem.KeyboardAccelerators>
                         </MenuFlyoutItem>
                     </MenuFlyout>
