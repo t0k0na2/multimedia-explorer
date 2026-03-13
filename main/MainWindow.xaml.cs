@@ -583,8 +583,37 @@ namespace main
                 if (newValue < ZoomSlider.Minimum) newValue = ZoomSlider.Minimum;
                 
                 ZoomSlider.Value = newValue;
+
+                // 選択中のアイテムが画面内に収まるようにスクロール
+                ScrollToSelectedItem();
+
                 e.Handled = true; // ズーム処理したのでスクロールをキャンセル
             }
+        }
+
+        /// <summary>
+        /// 選択中のアイテムが画面内に収まるようにスクロール位置を調整する
+        /// </summary>
+        private void ScrollToSelectedItem()
+        {
+            if (FileSystemGridView == null || FileSystemGridView.SelectedItems.Count == 0) return;
+
+            // レイアウト更新後にスクロールを実行
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                FileSystemGridView.UpdateLayout();
+
+                if (FileSystemGridView.SelectedItems.Count > 0)
+                {
+                    var firstSelected = FileSystemGridView.SelectedItems[0];
+                    FileSystemGridView.ScrollIntoView(firstSelected, ScrollIntoViewAlignment.Default);
+                }
+            });
+        }
+
+        private void ZoomSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+        {
+            ScrollToSelectedItem();
         }
 
         private async void AudioPlayButton_Click(object sender, RoutedEventArgs e)

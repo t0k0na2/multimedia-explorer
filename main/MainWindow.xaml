@@ -48,7 +48,7 @@
             <StackPanel Grid.Row="0" Orientation="Horizontal" Padding="16" Spacing="16">
                 <!-- Directory select button removed -->
                 <TextBlock x:Name="SelectedDirectoryTextBlock" VerticalAlignment="Center" Text="ディレクトリが選択されていません。" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
-                <Slider x:Name="ZoomSlider" Minimum="60" Maximum="600" Value="120" Width="200" VerticalAlignment="Center" Header="ズーム" />
+                <Slider x:Name="ZoomSlider" Minimum="60" Maximum="600" Value="120" Width="200" VerticalAlignment="Center" Header="ズーム" ValueChanged="ZoomSlider_ValueChanged" />
             </StackPanel>
 
             <!-- GridView for Files and Folders -->
