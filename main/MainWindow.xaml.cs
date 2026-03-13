@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.VisualBasic.FileIO;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -25,6 +25,7 @@ using Windows.Graphics;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -45,6 +46,7 @@ namespace main
         private string? _currentVideoPlayingPath;
         private Button? _currentVideoPlayingButton;
         private string? _currentModelDirectory;
+        private string? _currentDirectoryPath;
 
         private AppWindow? _appWindow;
         private RectInt32 _lastNormalBounds;
@@ -428,6 +430,7 @@ namespace main
             _thumbnailQueue.Clear();
             _isGeneratingThumbnail = false;
             _currentThumbnailDirectory = path;
+            _currentDirectoryPath = null;
 
             try
             {
@@ -462,6 +465,7 @@ namespace main
                 }
 
                 ProcessThumbnailQueue();
+                _currentDirectoryPath = path;
             }
             catch (Exception ex)
             {
@@ -1276,6 +1280,37 @@ namespace main
             }
         }
 
+        private async void FileSystemGridView_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
+        {
+            var storageItems = new List<IStorageItem>();
+            foreach (var item in e.Items)
+            {
+                if (item is FileSystemItem fsItem)
+                {
+                    try
+                    {
+                        if (fsItem.IsFolder)
+                        {
+                            storageItems.Add(await StorageFolder.GetFolderFromPathAsync(fsItem.Path));
+                        }
+                        else
+                        {
+                            storageItems.Add(await StorageFile.GetFileFromPathAsync(fsItem.Path));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to get storage item: {ex.Message}");
+                    }
+                }
+            }
+
+            if (storageItems.Count > 0)
+            {
+                e.Data.SetStorageItems(storageItems);
+                e.Data.RequestedOperation = DataPackageOperation.Copy | DataPackageOperation.Move;
+            }
+        }
 
         private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
         {
@@ -1371,5 +1406,57 @@ namespace main
             public bool IsMaximized { get; set; }
         }
 
+        private void FileSystemGridView_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                e.AcceptedOperation = DataPackageOperation.Copy;
+            }
+        }
+
+        private async void FileSystemGridView_Drop(object sender, DragEventArgs e)
+        {
+            if (e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                var items = await e.DataView.GetStorageItemsAsync();
+                if (items.Count > 0 && !string.IsNullOrEmpty(_currentDirectoryPath))
+                {
+                    foreach (var item in items)
+                    {
+                        try
+                        {
+                            if (item is StorageFile file)
+                            {
+                                await file.CopyAsync(await StorageFolder.GetFolderFromPathAsync(_currentDirectoryPath), file.Name, NameCollisionOption.GenerateUniqueName);
+                            }
+                            else if (item is StorageFolder folder)
+                            {
+                                // フォルダのコピーは再帰的に行う必要がある
+                                await CopyFolderAsync(folder, await StorageFolder.GetFolderFromPathAsync(_currentDirectoryPath));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Drop failed: {ex.Message}");
+                        }
+                    }
+                    // リフレッシュ
+                    LoadDirectoryContents(_currentDirectoryPath);
+                }
+            }
+        }
+
+        private async Task CopyFolderAsync(StorageFolder source, StorageFolder destinationParent)
+        {
+            var newFolder = await destinationParent.CreateFolderAsync(source.Name, CreationCollisionOption.GenerateUniqueName);
+            foreach (var file in await source.GetFilesAsync())
+            {
+                await file.CopyAsync(newFolder, file.Name, NameCollisionOption.GenerateUniqueName);
+            }
+            foreach (var subFolder in await source.GetFoldersAsync())
+            {
+                await CopyFolderAsync(subFolder, newFolder);
+            }
+        }
     }
 }

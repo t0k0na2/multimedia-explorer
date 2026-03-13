@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Window
     x:Class="main.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -76,7 +76,12 @@
 
             <!-- GridView for Files and Folders -->
             <GridView Grid.Row="1" x:Name="FileSystemGridView" Padding="16" SelectionMode="Extended"
-                      PointerWheelChanged="FileSystemGridView_PointerWheelChanged">
+                      CanDragItems="True"
+                      DragItemsStarting="FileSystemGridView_DragItemsStarting"
+                      PointerWheelChanged="FileSystemGridView_PointerWheelChanged"
+                      AllowDrop="True"
+                      DragOver="FileSystemGridView_DragOver"
+                      Drop="FileSystemGridView_Drop">
                 <GridView.ContextFlyout>
                     <MenuFlyout Opening="GridViewContextFlyout_Opening"
                                 Closed="GridViewContextFlyout_Closed">
