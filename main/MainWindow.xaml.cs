@@ -835,86 +835,179 @@ namespace main
         }
 
         /// <summary>
-        /// GridViewのキーダウンイベントハンドラー
-        /// Delete: ゴミ箱へ移動、Shift+Delete: 完全削除
-        /// Ctrl+C: クリップボードへコピー、Ctrl+V: クリップボードからペースト
+        /// GridViewのContextFlyoutが開く前に呼ばれるイベントハンドラー
+        /// 選択状態やクリップボードに応じてメニュー項目の有効/無効を切り替える
         /// </summary>
-        private async void FileSystemGridView_KeyDown(object sender, KeyRoutedEventArgs e)
+        private void GridViewContextFlyout_Opening(object sender, object e)
         {
-            var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
-            bool isCtrlPressed = ctrlState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            bool hasSelection = FileSystemGridView.SelectedItems.Count > 0;
+            bool hasClipboardData = Clipboard.GetContent().Contains(StandardDataFormats.StorageItems);
 
-            if (isCtrlPressed && e.Key == Windows.System.VirtualKey.C)
+            GridViewCopyMenuItem.IsEnabled = hasSelection;
+            GridViewPasteMenuItem.IsEnabled = hasClipboardData;
+            GridViewDeleteMenuItem.IsEnabled = hasSelection;
+            GridViewPermanentDeleteMenuItem.IsEnabled = hasSelection;
+        }
+
+        /// <summary>
+        /// GridViewのContextFlyoutが閉じた後に呼ばれるイベントハンドラー
+        /// キーボードアクセラレーションで正しく動作するよう、IsEnabledをすべてtrueにリセットする
+        /// </summary>
+        private void GridViewContextFlyout_Closed(object sender, object e)
+        {
+            GridViewCopyMenuItem.IsEnabled = true;
+            GridViewPasteMenuItem.IsEnabled = true;
+            GridViewDeleteMenuItem.IsEnabled = true;
+            GridViewPermanentDeleteMenuItem.IsEnabled = true;
+        }
+
+        /// <summary>
+        /// GridViewのコピーメニューがクリックされたときのハンドラー
+        /// キーボードアクセラレーションからの呼び出し時も含め、選択状態を再チェックする
+        /// </summary>
+        private async void GridViewCopyMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            // GridViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
+            if (!IsFocusedOrHasFocusedChild(FileSystemGridView)) return;
+
+            var selectedPaths = FileSystemGridView.SelectedItems
+                .OfType<FileSystemItem>()
+                .Select(item => item.Path)
+                .ToList();
+
+            // 選択がない場合は何もしない（アクセラレーション経由でも安全に処理）
+            if (selectedPaths.Count == 0) return;
+
+            System.Diagnostics.Debug.WriteLine("GridViewCopyMenuItem_Click");
+
+            await CopyPathsToClipboard(selectedPaths);
+        }
+
+        /// <summary>
+        /// GridViewの貼り付けメニューがクリックされたときのハンドラー
+        /// キーボードアクセラレーションからの呼び出し時も含め、クリップボードと対象ディレクトリを再チェックする
+        /// </summary>
+        private async void GridViewPasteMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            // GridViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
+            if (!IsFocusedOrHasFocusedChild(FileSystemGridView)) return;
+
+            // クリップボードにファイルデータがなければ何もしない
+            if (!Clipboard.GetContent().Contains(StandardDataFormats.StorageItems)) return;
+
+            string? targetDir = GetCurrentDirectoryPath();
+            if (!string.IsNullOrEmpty(targetDir))
             {
-                // Ctrl+C: 選択アイテムをクリップボードにコピー
-                var selectedItems = FileSystemGridView.SelectedItems
-                    .OfType<FileSystemItem>()
-                    .Select(item => item.Path)
-                    .ToList();
+                System.Diagnostics.Debug.WriteLine("GridViewPasteMenuItem_Click");
 
-                if (selectedItems.Count > 0)
-                {
-                    await CopyPathsToClipboard(selectedItems);
-                }
-                e.Handled = true;
-            }
-            else if (isCtrlPressed && e.Key == Windows.System.VirtualKey.V)
-            {
-                // Ctrl+V: クリップボードからペースト
-                string? targetDir = GetCurrentDirectoryPath();
-                if (!string.IsNullOrEmpty(targetDir))
-                {
-                    await PasteFilesFromClipboardAsync(targetDir);
-                }
-                e.Handled = true;
-            }
-            else if (e.Key == Windows.System.VirtualKey.Delete)
-            {
-                var selectedItems = FileSystemGridView.SelectedItems
-                    .OfType<FileSystemItem>()
-                    .ToList();
-
-                if (selectedItems.Count == 0) return;
-
-                // Shiftキーが押されているか確認
-                var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
-                bool isShiftPressed = shiftState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-
-                await DeleteSelectedItemsAsync(selectedItems, permanentDelete: isShiftPressed);
-                e.Handled = true;
+                await PasteFilesFromClipboardAsync(targetDir);
             }
         }
 
         /// <summary>
-        /// TreeViewのキーダウンイベントハンドラー
-        /// Ctrl+C: 選択フォルダをクリップボードにコピー
-        /// Ctrl+V: 選択フォルダへクリップボードからペースト
+        /// GridViewのゴミ箱に移動メニューがクリックされたときのハンドラー
+        /// キーボードアクセラレーションからの呼び出し時も含め、選択状態を再チェックする
         /// </summary>
-        private async void FolderTreeView_KeyDown(object sender, KeyRoutedEventArgs e)
+        private async void GridViewDeleteMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
-            bool isCtrlPressed = ctrlState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            // GridViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
+            if (!IsFocusedOrHasFocusedChild(FileSystemGridView)) return;
 
-            if (!isCtrlPressed) return;
+            var selectedItems = FileSystemGridView.SelectedItems
+                .OfType<FileSystemItem>()
+                .ToList();
 
-            if (e.Key == Windows.System.VirtualKey.C)
-            {
-                // Ctrl+C: 選択フォルダをクリップボードにコピー
-                if (FolderTreeView.SelectedNode?.Content is ExplorerItem item && !string.IsNullOrEmpty(item.Path))
-                {
-                    await CopyPathsToClipboard(new List<string> { item.Path });
-                }
-                e.Handled = true;
-            }
-            else if (e.Key == Windows.System.VirtualKey.V)
-            {
-                // Ctrl+V: 選択フォルダへクリップボードからペースト
-                if (FolderTreeView.SelectedNode?.Content is ExplorerItem item && !string.IsNullOrEmpty(item.Path))
-                {
-                    await PasteFilesFromClipboardAsync(item.Path);
-                }
-                e.Handled = true;
-            }
+            // 選択がない場合は何もしない（アクセラレーション経由でも安全に処理）
+            if (selectedItems.Count == 0) return;
+
+            System.Diagnostics.Debug.WriteLine("GridViewDeleteMenuItem_Click");
+
+            await DeleteSelectedItemsAsync(selectedItems, permanentDelete: false);
+        }
+
+        /// <summary>
+        /// GridViewの完全削除メニューがクリックされたときのハンドラー
+        /// キーボードアクセラレーションからの呼び出し時も含め、選択状態を再チェックする
+        /// </summary>
+        private async void GridViewPermanentDeleteMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            // GridViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
+            if (!IsFocusedOrHasFocusedChild(FileSystemGridView)) return;
+
+            var selectedItems = FileSystemGridView.SelectedItems
+                .OfType<FileSystemItem>()
+                .ToList();
+
+            // 選択がない場合は何もしない（アクセラレーション経由でも安全に処理）
+            if (selectedItems.Count == 0) return;
+
+            System.Diagnostics.Debug.WriteLine("GridViewPermanentDeleteMenuItem_Click");
+
+            await DeleteSelectedItemsAsync(selectedItems, permanentDelete: true);
+        }
+
+        /// <summary>
+        /// TreeViewのContextFlyoutが開く前に呼ばれるイベントハンドラー
+        /// 選択状態やクリップボードに応じてメニュー項目の有効/無効を切り替える
+        /// </summary>
+        private void FolderTreeViewContextFlyout_Opening(object sender, object e)
+        {
+            System.Diagnostics.Debug.WriteLine("FolderTreeViewContextFlyout_Opening");
+            bool hasSelection = FolderTreeView.SelectedNode?.Content is ExplorerItem item
+                && !string.IsNullOrEmpty(item.Path);
+            bool hasClipboardData = Clipboard.GetContent().Contains(StandardDataFormats.StorageItems);
+
+            TreeViewCopyMenuItem.IsEnabled = hasSelection;
+            TreeViewPasteMenuItem.IsEnabled = hasSelection && hasClipboardData;
+        }
+
+        /// <summary>
+        /// TreeViewのContextFlyoutが閉じた後に呼ばれるイベントハンドラー
+        /// キーボードアクセラレーションで正しく動作するよう、IsEnabledをすべてtrueにリセットする
+        /// </summary>
+        private void FolderTreeViewContextFlyout_Closed(object sender, object e)
+        {
+            TreeViewCopyMenuItem.IsEnabled = true;
+            TreeViewPasteMenuItem.IsEnabled = true;
+        }
+
+        /// <summary>
+        /// TreeViewのコピーメニューがクリックされたときのハンドラー
+        /// キーボードアクセラレーションからの呼び出し時も含め、選択状態を再チェックする
+        /// </summary>
+        private async void TreeViewCopyMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            // TreeViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
+            if (!IsFocusedOrHasFocusedChild(FolderTreeView)) return;
+
+            // 選択フォルダがなければ何もしない（アクセラレーション経由でも安全に処理）
+            if (FolderTreeView.SelectedNode?.Content is not ExplorerItem item
+                || string.IsNullOrEmpty(item.Path)) return;
+
+            System.Diagnostics.Debug.WriteLine("TreeViewCopyMenuItem_Click");
+
+            await CopyPathsToClipboard(new List<string> { item.Path });
+        }
+
+        /// <summary>
+        /// TreeViewの貼り付けメニューがクリックされたときのハンドラー
+        /// キーボードアクセラレーションからの呼び出し時も含め、選択状態とクリップボードを再チェックする
+        /// </summary>
+        private async void TreeViewPasteMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            // TreeViewにフォーカスがない場合は処理しない（アクセラレーションキーの競合防止）
+            if (!IsFocusedOrHasFocusedChild(FolderTreeView)) return;
+
+            // 選択フォルダがなければ何もしない（アクセラレーション経由でも安全に処理）
+            if (FolderTreeView.SelectedNode?.Content is not ExplorerItem item
+                || string.IsNullOrEmpty(item.Path)) return;
+
+            // クリップボードにファイルデータがなければ何もしない
+            if (!Clipboard.GetContent().Contains(StandardDataFormats.StorageItems)) return;
+
+            System.Diagnostics.Debug.WriteLine("TreeViewPasteMenuItem_Click");
+
+            await PasteFilesFromClipboardAsync(item.Path);
         }
 
         /// <summary>
@@ -950,6 +1043,10 @@ namespace main
 
                 if (storageItems.Count > 0)
                 {
+                    foreach (var storageItem in storageItems)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Adding to clipboard: {storageItem.Path}");
+                    }
                     var dataPackage = new DataPackage();
                     dataPackage.RequestedOperation = DataPackageOperation.Copy;
                     dataPackage.SetStorageItems(storageItems);
@@ -991,6 +1088,7 @@ namespace main
                                 System.IO.Path.Combine(targetDirectoryPath, file.Name));
                             string destFileName = System.IO.Path.GetFileName(destPath);
                             var destFolder = await StorageFolder.GetFolderFromPathAsync(targetDirectoryPath);
+                            System.Diagnostics.Debug.WriteLine($"Copying file: {file.Path} to {destFolder.Path}\\{destFileName}");
                             await file.CopyAsync(destFolder, destFileName, NameCollisionOption.GenerateUniqueName);
                             successCount++;
                         }
@@ -1020,6 +1118,20 @@ namespace main
                     LoadDirectoryContents(currentDir);
                 }
 
+                // ペースト先フォルダに対応するTreeViewノードが展開済みなら再読み込みする
+                string targetPathLower = targetDirectoryPath
+                    .TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar)
+                    .ToLowerInvariant();
+                foreach (var rootNode in FolderTreeView.RootNodes)
+                {
+                    var targetNode = FindNodeRecursive(rootNode, targetPathLower);
+                    if (targetNode != null && !targetNode.HasUnrealizedChildren)
+                    {
+                        FillTreeNode(targetNode);
+                        break;
+                    }
+                }
+
                 if (failedItems.Count > 0)
                 {
                     SelectedDirectoryTextBlock.Text = $"ペーストに失敗したアイテム: {string.Join(", ", failedItems)}";
@@ -1036,6 +1148,7 @@ namespace main
         /// </summary>
         private async System.Threading.Tasks.Task CopyFolderContentsAsync(StorageFolder source, StorageFolder destination)
         {
+            System.Diagnostics.Debug.WriteLine($"Copying folder: {source.Path} to {destination.Path}");
             // ファイルをコピー
             foreach (var file in await source.GetFilesAsync())
             {
@@ -1165,6 +1278,31 @@ namespace main
                 string errorMessage = $"削除に失敗したアイテム: {string.Join(", ", failedItems)}";
                 SelectedDirectoryTextBlock.Text = errorMessage;
             }
+        }
+
+
+        /// <summary>
+        /// 指定したコントロールまたはその子要素にフォーカスがあるかを確認する
+        /// </summary>
+        private bool IsFocusedOrHasFocusedChild(DependencyObject container)
+        {
+            if (this.Content == null || this.Content.XamlRoot == null) return false;
+
+            var focusedElement = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(this.Content.XamlRoot);
+            if (focusedElement == null) return false;
+
+            if (ReferenceEquals(focusedElement, container)) return true;
+
+            if (focusedElement is DependencyObject focusedDep)
+            {
+                DependencyObject? current = focusedDep;
+                while (current != null)
+                {
+                    if (ReferenceEquals(current, container)) return true;
+                    current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
+                }
+            }
+            return false;
         }
     }
 }
