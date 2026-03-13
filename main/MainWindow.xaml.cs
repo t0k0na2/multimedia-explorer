@@ -487,6 +487,22 @@ namespace main
                     LoadDirectoryContents(item.Path);
                     SelectTreeNodeFromPath(item.Path);
                 }
+                else
+                {
+                    try
+                    {
+                        // 関連付けられたデフォルトのアプリケーションでファイルを開く
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = item.Path,
+                            UseShellExecute = true
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        SelectedDirectoryTextBlock.Text = $"ファイルの起動に失敗しました: {ex.Message}";
+                    }
+                }
             }
         }
 
