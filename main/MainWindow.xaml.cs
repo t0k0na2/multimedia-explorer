@@ -1354,7 +1354,7 @@ namespace main
                 if (File.Exists(_settingsPath))
                 {
                     string json = File.ReadAllText(_settingsPath);
-                    var settings = JsonSerializer.Deserialize<WindowSettings>(json);
+                    var settings = JsonSerializer.Deserialize(json, WindowSettingsContext.Default.WindowSettings);
 
                     if (settings != null)
                     {
@@ -1405,7 +1405,7 @@ namespace main
                     Directory.CreateDirectory(directory);
                 }
 
-                string json = JsonSerializer.Serialize(settings);
+                string json = JsonSerializer.Serialize(settings, WindowSettingsContext.Default.WindowSettings);
                 File.WriteAllText(_settingsPath, json);
             }
             catch (Exception ex)
@@ -1414,13 +1414,18 @@ namespace main
             }
         }
 
-        private class WindowSettings
+        internal class WindowSettings
         {
             public int X { get; set; }
             public int Y { get; set; }
             public int Width { get; set; }
             public int Height { get; set; }
             public bool IsMaximized { get; set; }
+        }
+
+        [System.Text.Json.Serialization.JsonSerializable(typeof(WindowSettings))]
+        internal partial class WindowSettingsContext : System.Text.Json.Serialization.JsonSerializerContext
+        {
         }
 
         private void FileSystemGridView_DragOver(object sender, DragEventArgs e)
