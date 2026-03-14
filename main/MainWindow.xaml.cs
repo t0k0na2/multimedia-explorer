@@ -1326,6 +1326,23 @@ namespace main
         private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
         {
             SaveWindowState();
+
+            // WebView2の例外エラーを防ぐため、アプリ終了時にリソースを明示的に解放します
+            try
+            {
+                if (ModelWebView != null)
+                {
+                    ModelWebView.Close();
+                }
+                if (ThumbnailWebView != null)
+                {
+                    ThumbnailWebView.Close();
+                }
+            }
+            catch
+            {
+                // アプリ終了処理中のため例外は無視する
+            }
         }
 
         private void RestoreWindowState()
