@@ -147,7 +147,7 @@
                                         <FontIcon Glyph="&#xE768;" FontSize="48" Margin="0" />
                                     </Button>
                                     <Button Visibility="{x:Bind ModelButtonVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#44000000" BorderThickness="0" Padding="0" Click="ModelPlayButton_Click" Tag="{x:Bind Path}">
-                                        <FontIcon Glyph="&#xE943;" FontSize="48" Margin="0" Foreground="White" />
+                                        <FontIcon Glyph="&#xE8FF;" FontSize="48" Margin="0" Foreground="White" />
                                     </Button>
                                 </Grid>
                             </Viewbox>
