@@ -136,6 +136,7 @@
                                     <FontIcon Glyph="{x:Bind Icon}" FontSize="64" Visibility="{x:Bind FontIconVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     <local:AnimatedImageControl ImagePath="{x:Bind Path}" TargetSize="{Binding ElementName=ZoomSlider, Path=Value}" Visibility="{x:Bind ImageIconVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     <MediaPlayerElement Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="UniformToFill" />
+                                    <Image Source="{x:Bind ModelThumbnail, Mode=OneWay}" Visibility="{x:Bind ModelButtonVisibility}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     <Button Visibility="{x:Bind AudioButtonVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Padding="0" Click="AudioPlayButton_Click" Tag="{x:Bind Path}">
                                         <FontIcon Glyph="&#xE768;" FontSize="48" Margin="0" />
                                     </Button>
@@ -145,7 +146,6 @@
                                     <Button Visibility="{x:Bind ModelButtonVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#44000000" BorderThickness="0" Padding="0" Click="ModelPlayButton_Click" Tag="{x:Bind Path}">
                                         <FontIcon Glyph="&#xE943;" FontSize="48" Margin="0" Foreground="White" />
                                     </Button>
-                                    <Image Source="{x:Bind ModelThumbnail, Mode=OneWay}" Visibility="{x:Bind ModelButtonVisibility}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Grid>
                             </Viewbox>
                             <TextBlock Text="{x:Bind Name}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
