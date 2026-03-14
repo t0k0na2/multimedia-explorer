@@ -10,14 +10,14 @@
 
   <Identity
     Name="e114d6b6-f158-48c5-872a-08feef38a130"
-    Publisher="CN=Developer"
+    Publisher="CN=tokonatsu"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="e114d6b6-f158-48c5-872a-08feef38a130" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>main</DisplayName>
-    <PublisherDisplayName>Developer</PublisherDisplayName>
+    <PublisherDisplayName>tokonatsu</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
