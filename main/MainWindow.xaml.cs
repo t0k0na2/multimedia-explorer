@@ -50,7 +50,7 @@ namespace main
 
         private AppWindow? _appWindow;
         private RectInt32 _lastNormalBounds;
-        private string _settingsPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MultimediaExplorer", "window_settings.json");
+        private string _settingsPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "multimedia-explorer", "window_settings.json");
 
         // サムネイル生成用
         private Queue<string> _thumbnailQueue = new Queue<string>();
@@ -99,8 +99,12 @@ namespace main
         {
             try
             {
-                await ModelWebView.EnsureCoreWebView2Async();
-                await ThumbnailWebView.EnsureCoreWebView2Async();
+                string userDataFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "multimedia-explorer", "WebView2");
+
+                var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, userDataFolder, new CoreWebView2EnvironmentOptions());
+
+                await ModelWebView.EnsureCoreWebView2Async(env);
+                await ThumbnailWebView.EnsureCoreWebView2Async(env);
                 
                 string assetsPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets");
                 ModelWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
